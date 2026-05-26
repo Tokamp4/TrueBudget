@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  incomeSources   IncomeSource[]
+  bills           Bill[]
+  transactions    Transaction[]
+  healthSnapshots HealthSnapshot[]
+  plaidItems      PlaidItem[]
+}
+
+model IncomeSource {
+  id          String    @id @default(cuid())
+  userId      String
+  name        String
+  amount      Float
+  frequency   Frequency
+  nextPayDate DateTime
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Bill {
+  id                  String   @id @default(cuid())
+  userId              String
+  name                String
+  amount              Float
+  dueDate             DateTime
+  category            BillCategory
+  isPaid              Boolean  @default(false)
+  isRecurring         Boolean  @default(true)
+  consequenceSeverity Int      @default(3) // 1–5: 5 = eviction/critical
+  notes               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Transaction {
+  id        String          @id @default(cuid())
+  userId    String
+  amount    Float
+  type      TransactionType
+  date      DateTime
+  category  String
+  note      String?
+  source    String?         // "manual" | "plaid"
+  plaidId   String?         @unique
+  createdAt DateTime        @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model HealthSnapshot {
+  id           String   @id @default(cuid())
+  userId       String
+  score        Int      // 0–100
+  bufferDays   Float    // days of expenses covered by current balance
+  billPayRate  Float    // % bills paid on time (0–1)
+  debtToIncome Float    // debt-to-income ratio (0–1+)
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Plaid integration
+model PlaidItem {
+  id          String   @id @default(cuid())
+  userId      String
+  accessToken String
+  itemId      String   @unique
+  institution String?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum Frequency {
+  WEEKLY
+  BIWEEKLY
+  SEMIMONTHLY
+  MONTHLY
+}
+
+enum BillCategory {
+  HOUSING
+  UTILITIES
+  FOOD
+  TRANSPORTATION
+  HEALTHCARE
+  DEBT
+  INSURANCE
+  CHILDCARE
+  SUBSCRIPTIONS
+  OTHER
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
