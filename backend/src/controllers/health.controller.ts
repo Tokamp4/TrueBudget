@@ -1,23 +1,8 @@
 import { Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
-import { addDays, addWeeks, addMonths } from 'date-fns';
-import { Frequency } from '@prisma/client';
-
-/** Advance a past nextPayDate forward by its frequency until it's in the future. */
-function nextFuturePayDate(date: Date, frequency: Frequency): Date {
-  const now = new Date();
-  let d = new Date(date);
-  while (d <= now) {
-    switch (frequency) {
-      case 'WEEKLY':      d = addWeeks(d, 1);  break;
-      case 'BIWEEKLY':    d = addWeeks(d, 2);  break;
-      case 'SEMIMONTHLY': d = addDays(d, 15);  break;
-      case 'MONTHLY':     d = addMonths(d, 1); break;
-    }
-  }
-  return d;
-}
+import { addDays } from 'date-fns';
+import { nextFuturePayDate } from '../lib/income';
 
 /**
  * Financial Health Score (0–100):

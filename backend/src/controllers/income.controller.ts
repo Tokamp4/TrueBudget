@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
 import { Frequency } from '@prisma/client';
+import { nextFuturePayDate } from '../lib/income';
 
 const incomeSchema = z.object({
   name: z.string().min(1),
@@ -16,6 +17,27 @@ export async function getIncome(req: AuthRequest, res: Response) {
     where: { userId: req.userId! },
     orderBy: { nextPayDate: 'asc' },
   });
+
+  const now = new Date();
+  const stale = sources.filter((s) => s.nextPayDate <= now);
+
+  if (stale.length > 0) {
+    await Promise.all(
+      stale.map((s) =>
+        prisma.incomeSource.update({
+          where: { id: s.id },
+          data: { nextPayDate: nextFuturePayDate(s.nextPayDate, s.frequency) },
+        })
+      )
+    );
+
+    const updated = await prisma.incomeSource.findMany({
+      where: { userId: req.userId! },
+      orderBy: { nextPayDate: 'asc' },
+    });
+    return res.json(updated);
+  }
+
   res.json(sources);
 }
 
