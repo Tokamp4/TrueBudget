@@ -39,7 +39,11 @@ export default function Dashboard() {
     if (bills.length > 0) fetchScore();
   }, [bills]);
 
-  const urgentBills = bills.filter((b) => !b.isPaid && daysUntil(b.dueDate) <= 7);
+  const pastDueBills = bills
+    .filter((b) => !b.isPaid && daysUntil(b.dueDate) < 0)
+    .sort((a, b) => b.consequenceSeverity - a.consequenceSeverity);
+
+  const urgentBills = bills.filter((b) => !b.isPaid && daysUntil(b.dueDate) >= 0 && daysUntil(b.dueDate) <= 7);
 
   return (
     <div className="space-y-6">
@@ -79,6 +83,38 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Past due bills — only shown when there are overdue unpaid bills */}
+      {pastDueBills.length > 0 && (
+        <div className="bg-red-50 rounded-xl border border-red-200 p-6">
+          <h2 className="text-base font-semibold text-red-700 mb-1">
+            ⚠️ Past Due
+          </h2>
+          <p className="text-xs text-red-500 mb-4">
+            {pastDueBills.length} unpaid {pastDueBills.length === 1 ? 'bill has' : 'bills have'} passed their due date. Pay these as soon as possible.
+          </p>
+          <div className="space-y-3">
+            {pastDueBills.map((bill) => (
+              <div key={bill.id} className="flex items-center justify-between py-2 border-b border-red-100 last:border-0">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{bill.name}</p>
+                  <p className="text-xs text-red-500">
+                    {Math.abs(daysUntil(bill.dueDate))} {Math.abs(daysUntil(bill.dueDate)) === 1 ? 'day' : 'days'} overdue · due {formatDate(bill.dueDate)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${severityColor(bill.consequenceSeverity)}`}>
+                    {severityLabel(bill.consequenceSeverity)}
+                  </span>
+                  <span className="text-sm font-semibold text-gray-800">
+                    {formatCurrency(bill.amount)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Urgent bills */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">

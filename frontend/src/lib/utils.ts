@@ -5,11 +5,17 @@ export function formatCurrency(amount: number): string {
 }
 
 export function formatDate(date: string | Date): string {
-  return format(new Date(date), 'MMM d, yyyy');
+  // Extract year/month/day from the ISO string directly to avoid UTC-to-local
+  // timezone shifting (e.g. 2026-06-01T00:00:00Z rendering as May 31 locally).
+  const iso = typeof date === 'string' ? date : date.toISOString();
+  const [year, month, day] = iso.slice(0, 10).split('-').map(Number);
+  return format(new Date(year, month - 1, day), 'MMM d, yyyy');
 }
 
 export function daysUntil(date: string | Date): number {
-  return differenceInDays(new Date(date), new Date());
+  const iso = typeof date === 'string' ? date : date.toISOString();
+  const [year, month, day] = iso.slice(0, 10).split('-').map(Number);
+  return differenceInDays(new Date(year, month - 1, day), new Date());
 }
 
 export function severityLabel(score: number): string {
