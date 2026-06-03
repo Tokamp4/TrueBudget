@@ -33,6 +33,12 @@ export default function Dashboard() {
     fetchBills();
   }, []);
 
+  // Re-fetch health score whenever bill state changes (e.g. marked paid)
+  // so safe-to-spend and score stay in sync with the Bills page.
+  useEffect(() => {
+    if (bills.length > 0) fetchScore();
+  }, [bills]);
+
   const urgentBills = bills.filter((b) => !b.isPaid && daysUntil(b.dueDate) <= 7);
 
   return (

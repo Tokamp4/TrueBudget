@@ -1,7 +1,23 @@
 import { Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
-import { addDays } from 'date-fns';
+import { addDays, addWeeks, addMonths } from 'date-fns';
+import { Frequency } from '@prisma/client';
+
+/** Advance a past nextPayDate forward by its frequency until it's in the future. */
+function nextFuturePayDate(date: Date, frequency: Frequency): Date {
+  const now = new Date();
+  let d = new Date(date);
+  while (d <= now) {
+    switch (frequency) {
+      case 'WEEKLY':      d = addWeeks(d, 1);  break;
+      case 'BIWEEKLY':    d = addWeeks(d, 2);  break;
+      case 'SEMIMONTHLY': d = addDays(d, 15);  break;
+      case 'MONTHLY':     d = addMonths(d, 1); break;
+    }
+  }
+  return d;
+}
 
 /**
  * Financial Health Score (0–100):
@@ -62,8 +78,9 @@ export async function computeHealthScore(req: AuthRequest, res: Response) {
   });
 
   // Safe-to-spend: income due before next paycheck minus bills due before then
+  // Advance any past nextPayDate forward by its frequency so daysUntilNextPay is always >= 0.
   const nextPay = income.length > 0
-    ? Math.min(...income.map((s) => s.nextPayDate.getTime()))
+    ? Math.min(...income.map((s) => nextFuturePayDate(s.nextPayDate, s.frequency).getTime()))
     : Date.now() + 7 * 24 * 60 * 60 * 1000;
   const daysUntilPay = (nextPay - Date.now()) / (1000 * 60 * 60 * 24);
 
