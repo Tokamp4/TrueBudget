@@ -69,12 +69,19 @@ export async function computeHealthScore(req: AuthRequest, res: Response) {
     : Date.now() + 7 * 24 * 60 * 60 * 1000;
   const daysUntilPay = (nextPay - Date.now()) / (1000 * 60 * 60 * 24);
 
+  // Income expected between now and next payday.
+  const incomeBeforeNextPay = income.reduce((sum, s) => {
+    const futureDate = nextFuturePayDate(s.nextPayDate, s.frequency);
+    return futureDate.getTime() <= nextPay ? sum + s.amount : sum;
+  }, 0);
+
+  // Unpaid bills due on or before next payday.
   const upcomingBillTotal = bills
     .filter((b) => !b.isPaid && b.dueDate.getTime() <= nextPay)
     .reduce((sum, b) => sum + b.amount, 0);
 
-  const estimatedBalance = lastIncome; // approximation; replace with Plaid balance
-  const safeToSpend = Math.max(0, estimatedBalance - upcomingBillTotal);
+  // Safe-to-spend: money arriving before next payday minus bills due before then.
+  const safeToSpend = Math.max(0, incomeBeforeNextPay - upcomingBillTotal);
 
   res.json({ ...snapshot, safeToSpend, daysUntilNextPay: Math.round(daysUntilPay), monthlyIncome });
 }
