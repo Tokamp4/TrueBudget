@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useBillsStore } from '../store/billsStore';
-import { BillCategory } from '../types';
+import { Bill, BillCategory } from '../types';
 import { formatCurrency, formatDate, daysUntil, severityColor, severityLabel } from '../lib/utils';
 
 const CATEGORIES: BillCategory[] = [
@@ -26,31 +26,183 @@ const EMPTY_FORM = {
   notes: '',
 };
 
+type FormShape = typeof EMPTY_FORM;
+
+function billToForm(bill: Bill): FormShape {
+  return {
+    name: bill.name,
+    amount: String(bill.amount),
+    dueDate: bill.dueDate.slice(0, 10),
+    category: bill.category,
+    consequenceSeverity: bill.consequenceSeverity,
+    isRecurring: bill.isRecurring,
+    notes: bill.notes ?? '',
+  };
+}
+
+function BillForm({
+  title,
+  form,
+  onChange,
+  onSubmit,
+  onCancel,
+  submitting,
+  submitLabel,
+}: {
+  title: string;
+  form: FormShape;
+  onChange: (f: FormShape) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  onCancel: () => void;
+  submitting: boolean;
+  submitLabel: string;
+}) {
+  return (
+    <form onSubmit={onSubmit} className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+      <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+          <input
+            required
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            value={form.name}
+            onChange={(e) => onChange({ ...form, name: e.target.value })}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Amount ($)</label>
+          <input
+            required type="number" min="0.01" step="0.01"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            value={form.amount}
+            onChange={(e) => onChange({ ...form, amount: e.target.value })}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+          <input
+            required type="date"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            value={form.dueDate}
+            onChange={(e) => onChange({ ...form, dueDate: e.target.value })}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+          <select
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            value={form.category}
+            onChange={(e) => onChange({ ...form, category: e.target.value as BillCategory })}
+          >
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c}>{c.charAt(0) + c.slice(1).toLowerCase()}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Consequence Severity</label>
+          <select
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            value={form.consequenceSeverity}
+            onChange={(e) => onChange({ ...form, consequenceSeverity: Number(e.target.value) })}
+          >
+            {SEVERITY_OPTIONS.map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-2 pt-6">
+          <input
+            type="checkbox" id={`recurring-${title}`}
+            checked={form.isRecurring}
+            onChange={(e) => onChange({ ...form, isRecurring: e.target.checked })}
+            className="rounded border-gray-300 w-4 h-4"
+          />
+          <label htmlFor={`recurring-${title}`} className="text-sm text-gray-700">Recurring bill</label>
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
+        <input
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          value={form.notes}
+          onChange={(e) => onChange({ ...form, notes: e.target.value })}
+        />
+      </div>
+      <div className="flex justify-end gap-2">
+        <button
+          type="button" onClick={onCancel}
+          className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit" disabled={submitting}
+          className="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors"
+        >
+          {submitting ? 'Saving…' : submitLabel}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export default function Bills() {
-  const { bills, isLoading, fetchBills, createBill, togglePaid, deleteBill } = useBillsStore();
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [submitting, setSubmitting] = useState(false);
+  const { bills, isLoading, fetchBills, createBill, updateBill, togglePaid, deleteBill } = useBillsStore();
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [addForm, setAddForm] = useState(EMPTY_FORM);
+  const [addSubmitting, setAddSubmitting] = useState(false);
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState(EMPTY_FORM);
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   useEffect(() => { fetchBills(); }, []);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitting(true);
+    setAddSubmitting(true);
     try {
       await createBill({
-        name: form.name,
-        amount: parseFloat(form.amount),
-        dueDate: new Date(form.dueDate).toISOString(),
-        category: form.category,
-        consequenceSeverity: form.consequenceSeverity,
-        isRecurring: form.isRecurring,
-        notes: form.notes || undefined,
+        name: addForm.name,
+        amount: parseFloat(addForm.amount),
+        dueDate: new Date(addForm.dueDate).toISOString(),
+        category: addForm.category,
+        consequenceSeverity: addForm.consequenceSeverity,
+        isRecurring: addForm.isRecurring,
+        notes: addForm.notes || undefined,
       });
-      setForm(EMPTY_FORM);
-      setShowForm(false);
+      setAddForm(EMPTY_FORM);
+      setShowAddForm(false);
     } finally {
-      setSubmitting(false);
+      setAddSubmitting(false);
+    }
+  }
+
+  function startEdit(bill: Bill) {
+    setEditingId(bill.id);
+    setEditForm(billToForm(bill));
+    setShowAddForm(false);
+  }
+
+  async function handleEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingId) return;
+    setEditSubmitting(true);
+    try {
+      await updateBill(editingId, {
+        name: editForm.name,
+        amount: parseFloat(editForm.amount),
+        dueDate: new Date(editForm.dueDate).toISOString(),
+        category: editForm.category,
+        consequenceSeverity: editForm.consequenceSeverity,
+        isRecurring: editForm.isRecurring,
+        notes: editForm.notes || undefined,
+      });
+      setEditingId(null);
+    } finally {
+      setEditSubmitting(false);
     }
   }
 
@@ -59,100 +211,23 @@ export default function Bills() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Bills</h1>
         <button
-          onClick={() => setShowForm((v) => !v)}
+          onClick={() => { setShowAddForm((v) => !v); setEditingId(null); }}
           className="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors"
         >
-          {showForm ? 'Cancel' : '+ Add Bill'}
+          {showAddForm ? 'Cancel' : '+ Add Bill'}
         </button>
       </div>
 
-      {showForm && (
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white rounded-xl border border-gray-200 p-6 space-y-4"
-        >
-          <h2 className="text-base font-semibold text-gray-900">New Bill</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-              <input
-                required
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Amount ($)</label>
-              <input
-                required type="number" min="0.01" step="0.01"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                value={form.amount}
-                onChange={(e) => setForm({ ...form, amount: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
-              <input
-                required type="date"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                value={form.dueDate}
-                onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-              <select
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value as BillCategory })}
-              >
-                {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c.charAt(0) + c.slice(1).toLowerCase()}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Consequence Severity</label>
-              <select
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                value={form.consequenceSeverity}
-                onChange={(e) => setForm({ ...form, consequenceSeverity: Number(e.target.value) })}
-              >
-                {SEVERITY_OPTIONS.map((s) => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-center gap-2 pt-6">
-              <input
-                type="checkbox" id="isRecurring"
-                checked={form.isRecurring}
-                onChange={(e) => setForm({ ...form, isRecurring: e.target.checked })}
-                className="rounded border-gray-300 w-4 h-4"
-              />
-              <label htmlFor="isRecurring" className="text-sm text-gray-700">Recurring bill</label>
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
-            <input
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            />
-          </div>
-          <div className="flex justify-end">
-            <button
-              type="submit" disabled={submitting}
-              className="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors"
-            >
-              {submitting ? 'Saving…' : 'Save Bill'}
-            </button>
-          </div>
-        </form>
+      {showAddForm && (
+        <BillForm
+          title="New Bill"
+          form={addForm}
+          onChange={setAddForm}
+          onSubmit={handleAdd}
+          onCancel={() => setShowAddForm(false)}
+          submitting={addSubmitting}
+          submitLabel="Save Bill"
+        />
       )}
 
       {isLoading ? (
@@ -165,6 +240,23 @@ export default function Bills() {
         <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
           {bills.map((bill) => {
             const days = daysUntil(bill.dueDate);
+
+            if (editingId === bill.id) {
+              return (
+                <div key={bill.id} className="p-4">
+                  <BillForm
+                    title={`Edit — ${bill.name}`}
+                    form={editForm}
+                    onChange={setEditForm}
+                    onSubmit={handleEdit}
+                    onCancel={() => setEditingId(null)}
+                    submitting={editSubmitting}
+                    submitLabel="Save Changes"
+                  />
+                </div>
+              );
+            }
+
             return (
               <div
                 key={bill.id}
@@ -197,11 +289,7 @@ export default function Bills() {
                       <span className={`ml-2 font-medium ${
                         days < 0 ? 'text-red-600' : days <= 3 ? 'text-orange-500' : 'text-gray-500'
                       }`}>
-                        {days < 0
-                          ? `${Math.abs(days)}d overdue`
-                          : days === 0
-                          ? 'Due today'
-                          : `${days}d left`}
+                        {days < 0 ? `${Math.abs(days)}d overdue` : days === 0 ? 'Due today' : `${days}d left`}
                       </span>
                     )}
                   </p>
@@ -210,6 +298,14 @@ export default function Bills() {
                 <p className="text-sm font-semibold text-gray-900 flex-shrink-0">
                   {formatCurrency(bill.amount)}
                 </p>
+
+                <button
+                  onClick={() => startEdit(bill)}
+                  className="text-gray-300 hover:text-brand-600 transition-colors flex-shrink-0 text-sm"
+                  title="Edit bill"
+                >
+                  Edit
+                </button>
 
                 <button
                   onClick={() => deleteBill(bill.id)}
