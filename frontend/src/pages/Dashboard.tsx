@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useHealthStore } from '../store/incomeStore';
+import { useHealthStore, useIncomeStore } from '../store/incomeStore';
 import { useBillsStore } from '../store/billsStore';
 import { formatCurrency, severityColor, severityLabel, daysUntil, formatDate, healthScoreColor } from '../lib/utils';
 
@@ -27,17 +27,20 @@ function ScoreRing({ score }: { score: number }) {
 export default function Dashboard() {
   const { snapshot, fetchScore } = useHealthStore();
   const { bills, fetchBills } = useBillsStore();
+  const { sources } = useIncomeStore();
 
   useEffect(() => {
     fetchScore();
     fetchBills();
   }, []);
 
-  // Re-fetch health score whenever bill state changes (e.g. marked paid)
-  // so safe-to-spend and score stay in sync with the Bills page.
   useEffect(() => {
     if (bills.length > 0) fetchScore();
   }, [bills]);
+
+  useEffect(() => {
+    if (sources.length > 0) fetchScore();
+  }, [sources]);
 
   const pastDueBills = bills
     .filter((b) => !b.isPaid && daysUntil(b.dueDate) < 0)
