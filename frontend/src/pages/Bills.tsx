@@ -157,8 +157,15 @@ export default function Bills() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState(EMPTY_FORM);
   const [editSubmitting, setEditSubmitting] = useState(false);
+  const [sortBy, setSortBy] = useState<'priority' | 'dueDate'>('priority');
 
   useEffect(() => { fetchBills(); }, []);
+
+  const sortedBills = [...bills].sort((a, b) =>
+    sortBy === 'priority'
+      ? (b.priorityScore ?? 0) - (a.priorityScore ?? 0)
+      : new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+  );
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -210,12 +217,28 @@ export default function Bills() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Bills</h1>
-        <button
-          onClick={() => { setShowAddForm((v) => !v); setEditingId(null); }}
-          className="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors"
-        >
-          {showAddForm ? 'Cancel' : '+ Add Bill'}
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+            <button
+              onClick={() => setSortBy('priority')}
+              className={`px-3 py-1.5 transition-colors ${sortBy === 'priority' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:text-gray-800'}`}
+            >
+              Priority
+            </button>
+            <button
+              onClick={() => setSortBy('dueDate')}
+              className={`px-3 py-1.5 transition-colors ${sortBy === 'dueDate' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:text-gray-800'}`}
+            >
+              Due Date
+            </button>
+          </div>
+          <button
+            onClick={() => { setShowAddForm((v) => !v); setEditingId(null); }}
+            className="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors"
+          >
+            {showAddForm ? 'Cancel' : '+ Add Bill'}
+          </button>
+        </div>
       </div>
 
       {showAddForm && (
@@ -238,7 +261,7 @@ export default function Bills() {
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
-          {bills.map((bill) => {
+          {sortedBills.map((bill) => {
             const days = daysUntil(bill.dueDate);
 
             if (editingId === bill.id) {
