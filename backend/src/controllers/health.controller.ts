@@ -21,10 +21,12 @@ export async function computeHealthScore(req: AuthRequest, res: Response) {
     }),
   ]);
 
-  // Bill pay rate
-  const totalBills = bills.length;
-  const paidBills = bills.filter((b) => b.isPaid).length;
-  const billPayRate = totalBills > 0 ? paidBills / totalBills : 1;
+  // Bill pay rate — only bills already past due count as missed.
+  // Future unpaid bills are not yet overdue, so they don't penalise the score.
+  const now = new Date();
+  const pastDueBills = bills.filter((b) => b.dueDate < now);
+  const paidPastDue = pastDueBills.filter((b) => b.isPaid).length;
+  const billPayRate = pastDueBills.length > 0 ? paidPastDue / pastDueBills.length : 1;
 
   // Monthly income
   const monthlyIncome = income.reduce((sum, s) => {
@@ -44,15 +46,18 @@ export async function computeHealthScore(req: AuthRequest, res: Response) {
   // Debt-to-income ratio
   const debtToIncome = monthlyIncome > 0 ? monthlyDebt / monthlyIncome : 1;
 
-  // Buffer days: estimate days covered by last income vs expenses
-  const dailyExpense = monthlyExpenses / 30 || 1;
+  // Buffer days: days of expenses covered by available cash.
+  // Uses transaction history when available; falls back to income sources for new users.
+  const dailyExpense = monthlyExpenses / 30 || monthlyIncome / 30 || 1;
   const lastIncome = transactions
     .filter((t) => t.type === 'INCOME')
     .reduce((sum, t) => sum + t.amount, 0);
-  const bufferDays = Math.min(lastIncome / dailyExpense, 14); // cap at 14 days
+  const cashEstimate = lastIncome > 0 ? lastIncome : monthlyIncome;
+  const bufferDays = Math.min(cashEstimate / dailyExpense, 14); // cap at 14 days
 
-  // Score calculation
-  const billScore = billPayRate * 40;
+  // Score calculation.
+  // Bill score is only awarded when the user actually has bills — no free points for an empty account.
+  const billScore = bills.length > 0 ? billPayRate * 40 : 0;
   const bufferScore = (Math.min(bufferDays, 7) / 7) * 30;
   const debtScore = Math.max(0, 1 - debtToIncome) * 30;
   const score = Math.round(billScore + bufferScore + debtScore);
@@ -66,24 +71,35 @@ export async function computeHealthScore(req: AuthRequest, res: Response) {
   // Advance any past nextPayDate forward by its frequency so daysUntilNextPay is always >= 0.
   const nextPay = income.length > 0
     ? Math.min(...income.map((s) => nextFuturePayDate(s.nextPayDate, s.frequency).getTime()))
-    : Date.now() + 7 * 24 * 60 * 60 * 1000;
-  const daysUntilPay = (nextPay - Date.now()) / (1000 * 60 * 60 * 24);
+    : null;
+  const daysUntilPay = nextPay !== null
+    ? (nextPay - Date.now()) / (1000 * 60 * 60 * 24)
+    : null;
 
   // Income expected between now and next payday.
-  const incomeBeforeNextPay = income.reduce((sum, s) => {
-    const futureDate = nextFuturePayDate(s.nextPayDate, s.frequency);
-    return futureDate.getTime() <= nextPay ? sum + s.amount : sum;
-  }, 0);
+  const incomeBeforeNextPay = nextPay !== null
+    ? income.reduce((sum, s) => {
+        const futureDate = nextFuturePayDate(s.nextPayDate, s.frequency);
+        return futureDate.getTime() <= nextPay ? sum + s.amount : sum;
+      }, 0)
+    : 0;
 
   // Unpaid bills due on or before next payday.
-  const upcomingBillTotal = bills
-    .filter((b) => !b.isPaid && b.dueDate.getTime() <= nextPay)
-    .reduce((sum, b) => sum + b.amount, 0);
+  const upcomingBillTotal = nextPay !== null
+    ? bills
+        .filter((b) => !b.isPaid && b.dueDate.getTime() <= nextPay)
+        .reduce((sum, b) => sum + b.amount, 0)
+    : 0;
 
   // Safe-to-spend: money arriving before next payday minus bills due before then.
   const safeToSpend = Math.max(0, incomeBeforeNextPay - upcomingBillTotal);
 
-  res.json({ ...snapshot, safeToSpend, daysUntilNextPay: Math.round(daysUntilPay), monthlyIncome });
+  res.json({
+    ...snapshot,
+    safeToSpend,
+    daysUntilNextPay: daysUntilPay !== null ? Math.round(daysUntilPay) : null,
+    monthlyIncome,
+  });
 }
 
 export async function getHealthHistory(req: AuthRequest, res: Response) {
