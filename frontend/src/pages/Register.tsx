@@ -13,7 +13,7 @@ export default function Register() {
     setError('');
     try {
       await register(form);
-      navigate('/');
+      navigate('/onboarding');
     } catch {
       setError('Registration failed. Email may already be in use.');
     }

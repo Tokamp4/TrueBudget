@@ -10,6 +10,7 @@ import LoanCalculator from './pages/LoanCalculator';
 import History from './pages/History';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Onboarding from './pages/Onboarding';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
@@ -29,6 +30,14 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route
+          path="/onboarding"
+          element={
+            <ProtectedRoute>
+              <Onboarding />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/"
           element={
