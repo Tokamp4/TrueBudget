@@ -113,6 +113,7 @@ export default function Income() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState(EMPTY_FORM);
   const [editSubmitting, setEditSubmitting] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => { fetchIncome(); }, []);
 
@@ -223,13 +224,32 @@ export default function Income() {
                 >
                   Edit
                 </button>
-                <button
-                  onClick={() => deleteIncome(source.id)}
-                  className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0 text-xl leading-none"
-                  title="Delete income source"
-                >
-                  ×
-                </button>
+
+                {confirmDeleteId === source.id ? (
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <span className="text-sm text-gray-500">Delete?</span>
+                    <button
+                      onClick={() => { deleteIncome(source.id); setConfirmDeleteId(null); }}
+                      className="text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
+                    >
+                      Yes
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeleteId(null)}
+                      className="text-sm font-medium text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      No
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setConfirmDeleteId(source.id); setEditingId(null); }}
+                    className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0 text-2xl leading-none"
+                    title="Delete income source"
+                  >
+                    ×
+                  </button>
+                )}
               </div>
             );
           })}
