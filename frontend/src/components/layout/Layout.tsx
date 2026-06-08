@@ -5,9 +5,9 @@ const navItems = [
   { to: '/',           icon: '📊', label: 'Dashboard' },
   { to: '/bills',      icon: '📋', label: 'Bills' },
   { to: '/income',     icon: '💰', label: 'Income' },
-  { to: '/planner',    icon: '📅', label: 'Paycheck Planner' },
+  // { to: '/planner',    icon: '📅', label: 'Paycheck Planner' },
   { to: '/calculator', icon: '🧮', label: 'Loan Calculator' },
-  { to: '/history',    icon: '🕒', label: 'History' },
+  // { to: '/history',    icon: '🕒', label: 'History' },
 ];
 
 export default function Layout() {

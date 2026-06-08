@@ -14,8 +14,23 @@ export default function Register() {
     try {
       await register(form);
       navigate('/onboarding');
-    } catch {
-      setError('Registration failed. Email may already be in use.');
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const data   = err?.response?.data;
+
+      if (status === 409) {
+        setError('An account with this email already exists. Try signing in instead.');
+      } else if (status === 400) {
+        // Zod flatten shape: { fieldErrors: { email?: string[], password?: string[], ... } }
+        const fieldErrors: Record<string, string[]> = data?.error?.fieldErrors ?? {};
+        const messages = Object.entries(fieldErrors)
+          .flatMap(([field, errs]) => errs.map((e) => `${field}: ${e}`));
+        setError(messages.length ? messages.join(' · ') : 'Invalid submission. Please check all fields.');
+      } else if (!err?.response) {
+        setError('Could not reach the server. Make sure the backend is running.');
+      } else {
+        setError('Something went wrong. Please try again.');
+      }
     }
   }
 

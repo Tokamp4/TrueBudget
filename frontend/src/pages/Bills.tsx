@@ -158,6 +158,7 @@ export default function Bills() {
   const [editForm, setEditForm] = useState(EMPTY_FORM);
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [sortBy, setSortBy] = useState<'priority' | 'dueDate'>('priority');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => { fetchBills(); }, []);
 
@@ -330,13 +331,31 @@ export default function Bills() {
                   Edit
                 </button>
 
-                <button
-                  onClick={() => deleteBill(bill.id)}
-                  className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0 text-xl leading-none"
-                  title="Delete bill"
-                >
-                  ×
-                </button>
+                {confirmDeleteId === bill.id ? (
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <span className="text-sm text-gray-500">Delete?</span>
+                    <button
+                      onClick={() => { deleteBill(bill.id); setConfirmDeleteId(null); }}
+                      className="text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
+                    >
+                      Yes
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeleteId(null)}
+                      className="text-sm font-medium text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      No
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setConfirmDeleteId(bill.id); setEditingId(null); }}
+                    className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0 text-2xl leading-none"
+                    title="Delete bill"
+                  >
+                    ×
+                  </button>
+                )}
               </div>
             );
           })}
