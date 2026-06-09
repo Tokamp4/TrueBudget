@@ -14,23 +14,23 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  token: localStorage.getItem('cb_token'),
+  token: localStorage.getItem('tb_token'),
   isLoading: false,
 
   login: async (email, password) => {
     const { data } = await api.post('/auth/login', { email, password });
-    localStorage.setItem('cb_token', data.token);
+    localStorage.setItem('tb_token', data.token);
     set({ token: data.token, user: data.user });
   },
 
   register: async (formData) => {
     const { data } = await api.post('/auth/register', formData);
-    localStorage.setItem('cb_token', data.token);
+    localStorage.setItem('tb_token', data.token);
     set({ token: data.token, user: data.user });
   },
 
   logout: () => {
-    localStorage.removeItem('cb_token');
+    localStorage.removeItem('tb_token');
     set({ token: null, user: null });
   },
 

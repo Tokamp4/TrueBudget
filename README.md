@@ -1,4 +1,4 @@
-# ClearBudget 💳
+# TrueBudget 💳
 
 > Financial clarity for people living paycheck-to-paycheck.
 
@@ -11,7 +11,7 @@
 ## Project Structure
 
 ```
-clearbudget/
+truebudget/
 ├── backend/
 │   ├── prisma/
 │   │   ├── schema.prisma       # Database schema
@@ -61,7 +61,7 @@ npm run dev                 # runs on http://localhost:5173
 
 ### Backend `.env`
 ```
-DATABASE_URL="postgresql://user:password@localhost:5432/clearbudget"
+DATABASE_URL="postgresql://user:password@localhost:5432/truebudget"
 JWT_SECRET="your-super-secret-key"
 JWT_EXPIRES_IN="7d"
 PLAID_CLIENT_ID="your-plaid-client-id"
