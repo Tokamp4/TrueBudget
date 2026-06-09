@@ -161,12 +161,14 @@ export default function Income() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Income Sources</h1>
-        <button
-          onClick={() => { setShowAddForm((v) => !v); setEditingId(null); }}
-          className="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors"
-        >
-          {showAddForm ? 'Cancel' : '+ Add Income'}
-        </button>
+        {sources.length > 0 && (
+          <button
+            onClick={() => { setShowAddForm((v) => !v); setEditingId(null); }}
+            className="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors"
+          >
+            {showAddForm ? 'Cancel' : '+ Add Income'}
+          </button>
+        )}
       </div>
 
       {showAddForm && (
@@ -184,8 +186,20 @@ export default function Income() {
       {isLoading ? (
         <p className="text-sm text-gray-400">Loading…</p>
       ) : sources.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-          <p className="text-gray-400 text-sm">No income sources yet. Add one to get started.</p>
+        <div className="bg-white rounded-xl border border-gray-200 px-8 py-16 flex flex-col items-center gap-4">
+          <div className="text-5xl">💵</div>
+          <div className="text-center">
+            <p className="text-gray-900 font-semibold text-base">No income sources yet</p>
+            <p className="text-gray-400 text-sm mt-1">
+              Add your paycheck or any other income sources so TrueBudget can calculate your safe-to-spend amount and plan around your pay dates.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="mt-2 px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors"
+          >
+            + Add your first income source
+          </button>
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
