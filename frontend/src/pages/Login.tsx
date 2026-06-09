@@ -3,20 +3,36 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 
 export default function Login() {
-  const [email, setEmail] = useState('demo@truebudget.app');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useAuthStore();
   const navigate = useNavigate();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loading) return;
     setError('');
+    setLoading(true);
     try {
       await login(email, password);
       navigate('/');
-    } catch {
-      setError('Invalid credentials. Try demo@truebudget.app / password123');
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const msg: string = err?.response?.data?.error ?? '';
+
+      if (status === 401 || msg.toLowerCase().includes('invalid credentials')) {
+        setError('Incorrect email or password. Please try again.');
+      } else if (status === 400) {
+        setError('Please enter a valid email and password.');
+      } else if (!err?.response) {
+        setError('Unable to reach the server. Check your connection and try again.');
+      } else {
+        setError('Something went wrong. Please try again.');
+      }
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -40,9 +56,11 @@ export default function Login() {
             <input
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); setError(''); }}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              autoComplete="email"
               required
+              autoFocus
             />
           </div>
           <div>
@@ -50,20 +68,28 @@ export default function Login() {
             <input
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => { setPassword(e.target.value); setError(''); }}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              autoComplete="current-password"
               required
             />
           </div>
           <button
             type="submit"
-            className="w-full bg-brand-600 hover:bg-brand-700 text-white font-medium py-2.5 rounded-lg transition-colors text-sm"
+            disabled={loading}
+            className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white font-medium py-2.5 rounded-lg transition-colors text-sm"
           >
-            Sign In
+            {loading ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
 
-        <p className="text-center text-sm text-gray-500 mt-4">
+        <p className="text-center text-sm text-gray-500 mt-3">
+          <Link to="/forgot-password" className="text-brand-700 hover:underline">
+            Forgot your password?
+          </Link>
+        </p>
+
+        <p className="text-center text-sm text-gray-500 mt-2">
           No account?{' '}
           <Link to="/register" className="text-brand-700 hover:underline">
             Create one

@@ -11,11 +11,16 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Auto-logout on 401
+// Auto-logout on 401, but only for authenticated requests (not login itself)
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    const isAuthEndpoint = err.config?.url?.includes('/auth/login') ||
+                           err.config?.url?.includes('/auth/register') ||
+                           err.config?.url?.includes('/auth/forgot-password') ||
+                           err.config?.url?.includes('/auth/reset-password');
+
+    if (err.response?.status === 401 && !isAuthEndpoint) {
       localStorage.removeItem('tb_token');
       window.location.href = '/login';
     }
