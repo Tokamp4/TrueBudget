@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useHealthStore, useIncomeStore } from '../store/incomeStore';
 import { useBillsStore } from '../store/billsStore';
 import { formatCurrency, severityColor, severityLabel, daysUntil, formatDate, healthScoreColor } from '../lib/utils';
@@ -42,6 +43,8 @@ export default function Dashboard() {
     if (sources.length > 0) fetchScore();
   }, [sources]);
 
+  const isEmpty = bills.length === 0 && sources.length === 0;
+
   const pastDueBills = bills
     .filter((b) => !b.isPaid && daysUntil(b.dueDate) < 0)
     .sort((a, b) => b.consequenceSeverity - a.consequenceSeverity);
@@ -52,6 +55,46 @@ export default function Dashboard() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
 
+      {isEmpty ? (
+        <div className="bg-white rounded-xl border border-gray-200 px-8 py-16 flex flex-col items-center gap-6 text-center">
+          <div className="text-5xl">📊</div>
+          <div>
+            <p className="text-gray-900 font-semibold text-lg">Your financial overview lives here</p>
+            <p className="text-gray-400 text-sm mt-2 max-w-md">
+              Once you add your income sources and bills, the dashboard will show your health score,
+              safe-to-spend amount, days until your next payday, and any bills coming up in the next 7 days.
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-3 w-full max-w-md text-left">
+            {[
+              { icon: '💵', title: 'Safe to Spend', desc: 'What you can spend after covering upcoming bills' },
+              { icon: '📅', title: 'Days to Payday', desc: 'Countdown to your next income deposit' },
+              { icon: '❤️', title: 'Health Score', desc: 'A 0–100 score based on your bill pay rate and buffer' },
+            ].map(({ icon, title, desc }) => (
+              <div key={title} className="bg-gray-50 rounded-lg p-4">
+                <p className="text-2xl mb-2">{icon}</p>
+                <p className="text-xs font-semibold text-gray-700">{title}</p>
+                <p className="text-xs text-gray-400 mt-1">{desc}</p>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-3 mt-2">
+            <Link
+              to="/income"
+              className="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors"
+            >
+              + Add income source
+            </Link>
+            <Link
+              to="/bills"
+              className="px-5 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              + Add a bill
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <>
       {/* Top cards */}
       <div className="grid grid-cols-3 gap-4">
         {/* Safe to spend */}
@@ -147,6 +190,8 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }
