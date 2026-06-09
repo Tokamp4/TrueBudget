@@ -39,3 +39,37 @@ export async function sendVerificationEmail(to: string, firstName: string, token
 
   return data;
 }
+
+export async function sendPasswordResetEmail(to: string, firstName: string, token: string) {
+  const link = `${APP_URL}/reset-password?token=${token}`;
+
+  const { data, error } = await resend.emails.send({
+    from: FROM,
+    to,
+    subject: 'Reset your TrueBudget password',
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
+        <h1 style="font-size:22px;font-weight:700;color:#111;margin-bottom:8px">
+          💳 TrueBudget
+        </h1>
+        <p style="color:#444;font-size:15px;margin-bottom:24px">
+          Hi ${firstName}, we received a request to reset your password. Click the button below to choose a new one.
+        </p>
+        <a href="${link}"
+           style="display:inline-block;background:#16a34a;color:#fff;font-size:14px;font-weight:600;
+                  padding:12px 24px;border-radius:8px;text-decoration:none">
+          Reset Password
+        </a>
+        <p style="color:#888;font-size:12px;margin-top:24px">
+          This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email — your password won't change.
+        </p>
+      </div>
+    `,
+  });
+
+  if (error) {
+    throw Object.assign(new Error(error.message), { statusCode: (error as any).statusCode });
+  }
+
+  return data;
+}
