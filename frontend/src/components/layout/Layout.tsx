@@ -1,5 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { useAuthStore } from '../../store/authStore';
+import { api } from '../../lib/api';
 
 const navItems = [
   { to: '/',           icon: '📊', label: 'Dashboard' },
@@ -9,6 +11,40 @@ const navItems = [
   { to: '/calculator', icon: '🧮', label: 'Loan Calculator' },
   // { to: '/history',    icon: '🕒', label: 'History' },
 ];
+
+function VerificationBanner({ email }: { email: string }) {
+  const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  async function resend() {
+    setSending(true);
+    try {
+      await api.post('/auth/resend-verification');
+      setSent(true);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 flex items-center justify-between gap-4">
+      <p className="text-sm text-amber-800">
+        📬 Please verify your email address. We sent a link to <span className="font-medium">{email}</span>.
+      </p>
+      {sent ? (
+        <span className="text-xs text-amber-700 font-medium flex-shrink-0">Sent ✓</span>
+      ) : (
+        <button
+          onClick={resend}
+          disabled={sending}
+          className="text-xs font-semibold text-amber-700 hover:text-amber-900 underline flex-shrink-0 disabled:opacity-50 transition-colors"
+        >
+          {sending ? 'Sending…' : 'Resend email'}
+        </button>
+      )}
+    </div>
+  );
+}
 
 export default function Layout() {
   const { user, logout } = useAuthStore();
@@ -70,8 +106,11 @@ export default function Layout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto">
-        <div className="max-w-5xl mx-auto p-8">
+      <main className="flex-1 overflow-auto flex flex-col">
+        {user && !user.emailVerified && (
+          <VerificationBanner email={user.email} />
+        )}
+        <div className="max-w-5xl mx-auto p-8 w-full flex-1">
           <Outlet />
         </div>
       </main>

@@ -2,7 +2,10 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { z } from 'zod';
+import { randomBytes } from 'crypto';
+import { addHours } from 'date-fns';
 import { prisma } from '../lib/prisma';
+import { sendVerificationEmail } from '../lib/email';
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -34,12 +37,76 @@ export async function register(req: Request, res: Response) {
   if (existing) return res.status(409).json({ error: 'Email already in use' });
 
   const passwordHash = await bcrypt.hash(password, 12);
+  const verificationToken = randomBytes(32).toString('hex');
+
   const user = await prisma.user.create({
-    data: { email, passwordHash, firstName, lastName },
+    data: {
+      email, passwordHash, firstName, lastName,
+      emailVerificationToken: verificationToken,
+      emailVerificationExpiry: addHours(new Date(), 24),
+    },
   });
 
+  // Send verification email — fire-and-forget so a mail failure doesn't block registration
+  sendVerificationEmail(email, firstName, verificationToken)
+    .then(() => console.log(`[email] Verification email sent to ${email}`))
+    .catch((err) => {
+      console.error('[email] Failed to send verification email:');
+      console.error('  Status :', err?.statusCode ?? err?.status ?? 'unknown');
+      console.error('  Message:', err?.message ?? JSON.stringify(err));
+    });
+
   const token = signToken(user.id);
-  res.status(201).json({ token, user: { id: user.id, email, firstName, lastName } });
+  res.status(201).json({
+    token,
+    user: { id: user.id, email, firstName, lastName, emailVerified: false },
+  });
+}
+
+export async function verifyEmail(req: Request, res: Response) {
+  const { token } = req.query as { token?: string };
+  if (!token) return res.status(400).json({ error: 'Token is required' });
+
+  const user = await prisma.user.findFirst({
+    where: { emailVerificationToken: token },
+  });
+
+  if (!user) return res.status(400).json({ error: 'Invalid verification link' });
+
+  if (user.emailVerified) return res.json({ message: 'Email already verified' });
+
+  if (user.emailVerificationExpiry && user.emailVerificationExpiry < new Date()) {
+    return res.status(400).json({ error: 'Verification link has expired' });
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      emailVerified: true,
+      emailVerificationToken: null,
+      emailVerificationExpiry: null,
+    },
+  });
+
+  res.json({ message: 'Email verified successfully' });
+}
+
+export async function resendVerification(req: Request & { userId?: string }, res: Response) {
+  const user = await prisma.user.findUnique({ where: { id: req.userId! } });
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  if (user.emailVerified) return res.status(400).json({ error: 'Email already verified' });
+
+  const verificationToken = randomBytes(32).toString('hex');
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      emailVerificationToken: verificationToken,
+      emailVerificationExpiry: addHours(new Date(), 24),
+    },
+  });
+
+  await sendVerificationEmail(user.email, user.firstName, verificationToken);
+  res.json({ message: 'Verification email sent' });
 }
 
 export async function login(req: Request, res: Response) {
@@ -64,7 +131,7 @@ export async function login(req: Request, res: Response) {
 export async function me(req: Request & { userId?: string }, res: Response) {
   const user = await prisma.user.findUnique({
     where: { id: req.userId! },
-    select: { id: true, email: true, firstName: true, lastName: true, createdAt: true },
+    select: { id: true, email: true, firstName: true, lastName: true, emailVerified: true, createdAt: true },
   });
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json(user);

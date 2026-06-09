@@ -3,6 +3,7 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
+  emailVerified: boolean;
 }
 
 export type Frequency = 'WEEKLY' | 'BIWEEKLY' | 'SEMIMONTHLY' | 'MONTHLY';

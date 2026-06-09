@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { register, login, me } from '../controllers/auth.controller';
+import { register, login, me, verifyEmail, resendVerification } from '../controllers/auth.controller';
 import { getBills, createBill, updateBill, deleteBill } from '../controllers/bills.controller';
 import { getIncome, createIncome, updateIncome, deleteIncome } from '../controllers/income.controller';
 import { getTransactions, createTransaction, deleteTransaction } from '../controllers/transactions.controller';
@@ -13,6 +13,8 @@ const router = Router();
 router.post('/auth/register', register);
 router.post('/auth/login', login);
 router.get('/auth/me', authenticate, me);
+router.get('/auth/verify-email', verifyEmail);
+router.post('/auth/resend-verification', authenticate, resendVerification);
 
 // Bills
 router.get('/bills', authenticate, getBills);
