@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 
 export default function Login() {
-  const [email, setEmail] = useState('demo@clearbudget.app');
+  const [email, setEmail] = useState('demo@truebudget.app');
   const [password, setPassword] = useState('password123');
   const [error, setError] = useState('');
   const { login } = useAuthStore();
@@ -16,7 +16,7 @@ export default function Login() {
       await login(email, password);
       navigate('/');
     } catch {
-      setError('Invalid credentials. Try demo@clearbudget.app / password123');
+      setError('Invalid credentials. Try demo@truebudget.app / password123');
     }
   }
 
@@ -24,7 +24,7 @@ export default function Login() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="bg-white rounded-2xl border border-gray-200 p-8 w-full max-w-md">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">💳 ClearBudget</h1>
+          <h1 className="text-2xl font-bold text-gray-900">💳 TrueBudget</h1>
           <p className="text-gray-500 text-sm mt-1">Sign in to your account</p>
         </div>
 

@@ -8,7 +8,7 @@ import { AuthRequest } from '../middleware/auth';
 export async function createLinkToken(req: AuthRequest, res: Response) {
   const response = await plaidClient.linkTokenCreate({
     user: { client_user_id: req.userId! },
-    client_name: 'ClearBudget',
+    client_name: 'TrueBudget',
     products: [Products.Transactions],
     country_codes: [CountryCode.Us, CountryCode.Ca],
     language: 'en',

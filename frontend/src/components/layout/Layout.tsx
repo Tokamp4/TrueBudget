@@ -60,7 +60,7 @@ export default function Layout() {
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
         <div className="p-6 border-b border-gray-100">
-          <h1 className="text-xl font-bold text-brand-700">💳 ClearBudget</h1>
+          <h1 className="text-xl font-bold text-brand-700">💳 TrueBudget</h1>
           <p className="text-xs text-gray-500 mt-1">Financial clarity</p>
         </div>
 
