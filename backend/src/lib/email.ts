@@ -3,7 +3,7 @@ import { Resend } from 'resend';
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
-const FROM    = process.env.EMAIL_FROM || 'TrueBudget <onboarding@resend.dev>';
+const FROM    = process.env.EMAIL_FROM || 'TrueBudget <noreply@onboarding.truebudget.app>';
 
 export async function sendVerificationEmail(to: string, firstName: string, token: string) {
   const link = `${APP_URL}/verify-email?token=${token}`;
