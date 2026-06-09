@@ -441,12 +441,12 @@ function BillsStep({ onFinish, onSkip }: { onFinish: () => void; onSkip: () => v
         >
           {saving ? 'Saving…' : 'Save & Go to Dashboard'}
         </button>
-        <button
+        {/* <button
           onClick={onSkip}
           className="text-sm text-gray-400 hover:text-gray-600 transition-colors py-1"
         >
           Skip for now
-        </button>
+        </button> */}
       </div>
     </div>
   );
