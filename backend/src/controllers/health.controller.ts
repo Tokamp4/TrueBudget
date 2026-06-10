@@ -46,20 +46,55 @@ export async function computeHealthScore(req: AuthRequest, res: Response) {
   // Debt-to-income ratio
   const debtToIncome = monthlyIncome > 0 ? monthlyDebt / monthlyIncome : 1;
 
-  // Buffer days: days of expenses covered by available cash.
-  // Uses transaction history when available; falls back to income sources for new users.
-  const dailyExpense = monthlyExpenses / 30 || monthlyIncome / 30 || 1;
+  // Buffer days: only meaningful when there is real expense transaction history.
+  // Falling back to income when expenses are zero causes the score to divide income
+  // by itself, always hitting the cap regardless of actual financial health.
+  const hasExpenseHistory = monthlyExpenses > 0;
+  const dailyExpense = hasExpenseHistory ? monthlyExpenses / 30 : 1;
   const lastIncome = transactions
     .filter((t) => t.type === 'INCOME')
     .reduce((sum, t) => sum + t.amount, 0);
   const cashEstimate = lastIncome > 0 ? lastIncome : monthlyIncome;
-  const bufferDays = Math.min(cashEstimate / dailyExpense, 14); // cap at 14 days
+  const bufferDays = hasExpenseHistory
+    ? Math.min(cashEstimate / dailyExpense, 14)
+    : 0;
 
-  // Score calculation.
-  // Bill score is only awarded when the user actually has bills — no free points for an empty account.
-  const billScore = bills.length > 0 ? billPayRate * 40 : 0;
-  const bufferScore = (Math.min(bufferDays, 7) / 7) * 30;
-  const debtScore = Math.max(0, 1 - debtToIncome) * 30;
+  // Score requires enough data to be meaningful.
+  // Without bills AND without transaction history we cannot fairly score any dimension,
+  // so we skip persisting a snapshot and return null to the client.
+  const hasEnoughData = bills.length > 0 || transactions.length > 0;
+
+  if (!hasEnoughData) {
+    const nextPay = income.length > 0
+      ? Math.min(...income.map((s) => nextFuturePayDate(s.nextPayDate, s.frequency).getTime()))
+      : null;
+    const daysUntilPay = nextPay !== null
+      ? (nextPay - Date.now()) / (1000 * 60 * 60 * 24)
+      : null;
+    const incomeBeforeNextPay = nextPay !== null
+      ? income.reduce((sum, s) => {
+          const futureDate = nextFuturePayDate(s.nextPayDate, s.frequency);
+          return futureDate.getTime() <= nextPay ? sum + s.amount : sum;
+        }, 0)
+      : 0;
+
+    return res.json({
+      score: null,
+      bufferDays: 0,
+      billPayRate: 1,
+      debtToIncome: 0,
+      safeToSpend: incomeBeforeNextPay,
+      daysUntilNextPay: daysUntilPay !== null ? Math.round(daysUntilPay) : null,
+      monthlyIncome,
+    });
+  }
+
+  // Bill score:   0 pts if no bills yet (nothing to evaluate)
+  // Buffer score: 0 pts if no expense history (no real spending data to base it on)
+  // Debt score:   0 pts if no bills at all (no debt picture to evaluate)
+  const billScore   = bills.length > 0        ? billPayRate * 40                    : 0;
+  const bufferScore = hasExpenseHistory        ? (Math.min(bufferDays, 7) / 7) * 30 : 0;
+  const debtScore   = bills.length > 0        ? Math.max(0, 1 - debtToIncome) * 30 : 0;
   const score = Math.round(billScore + bufferScore + debtScore);
 
   // Persist snapshot

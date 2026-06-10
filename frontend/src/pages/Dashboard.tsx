@@ -117,16 +117,26 @@ export default function Dashboard() {
 
         {/* Health score */}
         <div className="bg-white rounded-xl border border-gray-200 p-6 flex items-center gap-4">
-          {snapshot && <ScoreRing score={snapshot.score} />}
-          <div>
-            <p className="text-sm text-gray-500">Health Score</p>
-            <p className="text-xs text-gray-400 mt-1">
-              Buffer: {snapshot?.bufferDays.toFixed(1)} days
-            </p>
-            <p className="text-xs text-gray-400">
-              Bill rate: {snapshot ? Math.round(snapshot.billPayRate * 100) : 0}%
-            </p>
-          </div>
+          {snapshot?.score != null ? (
+            <>
+              <ScoreRing score={snapshot.score} />
+              <div>
+                <p className="text-sm text-gray-500">Health Score</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Buffer: {snapshot.bufferDays.toFixed(1)} days
+                </p>
+                <p className="text-xs text-gray-400">
+                  Bill rate: {Math.round(snapshot.billPayRate * 100)}%
+                </p>
+              </div>
+            </>
+          ) : (
+            <div>
+              <p className="text-sm text-gray-500">Health Score</p>
+              <p className="text-2xl font-bold text-gray-300 mt-1">—</p>
+              <p className="text-xs text-gray-400 mt-1">Add bills or transactions to unlock</p>
+            </div>
+          )}
         </div>
       </div>
 
