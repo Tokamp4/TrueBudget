@@ -7,7 +7,11 @@ import { errorHandler } from './middleware/errorHandler';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors({ origin: process.env.APP_URL || 'http://localhost:5173', credentials: true }));
+const allowedOrigins = (process.env.CORS_ORIGINS || process.env.APP_URL || 'http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim());
+
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json());
 
 app.get('/health', (_, res) => res.json({ status: 'ok', service: 'truebudget-api' }));
