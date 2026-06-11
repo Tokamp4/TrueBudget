@@ -65,7 +65,7 @@ export default function Dashboard() {
               safe-to-spend amount, days until your next payday, and any bills coming up in the next 7 days.
             </p>
           </div>
-          <div className="grid grid-cols-3 gap-3 w-full max-w-md text-left">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-md text-left">
             {[
               { icon: '💵', title: 'Safe to Spend', desc: 'What you can spend after covering upcoming bills' },
               { icon: '📅', title: 'Days to Payday', desc: 'Countdown to your next income deposit' },
@@ -96,7 +96,7 @@ export default function Dashboard() {
       ) : (
         <>
       {/* Top cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Safe to spend */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <p className="text-sm text-gray-500 mb-1">Safe to Spend</p>
@@ -151,14 +151,14 @@ export default function Dashboard() {
           </p>
           <div className="space-y-3">
             {pastDueBills.map((bill) => (
-              <div key={bill.id} className="flex items-center justify-between py-2 border-b border-red-100 last:border-0">
-                <div>
+              <div key={bill.id} className="flex items-center justify-between gap-3 flex-wrap py-2 border-b border-red-100 last:border-0">
+                <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-900">{bill.name}</p>
                   <p className="text-xs text-red-500">
                     {Math.abs(daysUntil(bill.dueDate))} {Math.abs(daysUntil(bill.dueDate)) === 1 ? 'day' : 'days'} overdue · due {formatDate(bill.dueDate)}
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-shrink-0">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${severityColor(bill.consequenceSeverity)}`}>
                     {severityLabel(bill.consequenceSeverity)}
                   </span>
@@ -182,12 +182,12 @@ export default function Dashboard() {
         ) : (
           <div className="space-y-3">
             {urgentBills.map((bill) => (
-              <div key={bill.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                <div>
+              <div key={bill.id} className="flex items-center justify-between gap-3 flex-wrap py-2 border-b border-gray-50 last:border-0">
+                <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-900">{bill.name}</p>
                   <p className="text-xs text-gray-500">Due {formatDate(bill.dueDate)}</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-shrink-0">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${severityColor(bill.consequenceSeverity)}`}>
                     {severityLabel(bill.consequenceSeverity)}
                   </span>

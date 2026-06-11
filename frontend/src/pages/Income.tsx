@@ -43,7 +43,7 @@ function IncomeForm({
   return (
     <form onSubmit={onSubmit} className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
       <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
           <input
@@ -221,8 +221,8 @@ export default function Income() {
             }
 
             return (
-              <div key={source.id} className="flex items-center gap-4 p-4">
-                <div className="flex-1 min-w-0">
+              <div key={source.id} className="flex items-center gap-4 p-4 flex-wrap sm:flex-nowrap">
+                <div className="flex-1 min-w-0 basis-full sm:basis-auto">
                   <p className="text-sm font-medium text-gray-900">{source.name}</p>
                   <p className="text-xs text-gray-500 mt-0.5">
                     {frequencyLabel(source.frequency)} · Next payday: {formatDate(source.nextPayDate)}

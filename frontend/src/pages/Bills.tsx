@@ -60,7 +60,7 @@ function BillForm({
   return (
     <form onSubmit={onSubmit} className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
       <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
           <input
@@ -216,10 +216,10 @@ export default function Bills() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-gray-900">Bills</h1>
         {bills.length > 0 && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
               <button
                 onClick={() => setSortBy('priority')}
@@ -298,7 +298,7 @@ export default function Bills() {
             return (
               <div
                 key={bill.id}
-                className={`flex items-center gap-4 p-4 transition-opacity ${bill.isPaid ? 'opacity-40' : ''}`}
+                className={`flex items-center gap-4 p-4 flex-wrap sm:flex-nowrap transition-opacity ${bill.isPaid ? 'opacity-40' : ''}`}
               >
                 <input
                   type="checkbox"
@@ -307,7 +307,7 @@ export default function Bills() {
                   className="rounded border-gray-300 w-4 h-4 flex-shrink-0 cursor-pointer"
                 />
 
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 basis-full sm:basis-auto">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className={`text-sm font-medium text-gray-900 ${bill.isPaid ? 'line-through' : ''}`}>
                       {bill.name}

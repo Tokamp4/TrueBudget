@@ -224,7 +224,7 @@ function IncomeStep({ onNext, onSkip }: { onNext: () => void; onSkip: () => void
                 ×
               </button>
             )}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="col-span-2">
                 <label className="block text-xs font-medium text-gray-600 mb-1">Source name</label>
                 <input
@@ -370,7 +370,7 @@ function BillsStep({ onFinish, onSkip }: { onFinish: () => void; onSkip: () => v
                 ×
               </button>
             )}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="col-span-2">
                 <label className="block text-xs font-medium text-gray-600 mb-1">Bill name</label>
                 <input
@@ -466,8 +466,8 @@ export default function Onboarding() {
   const finish = () => navigate('/');
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="bg-white rounded-2xl border border-gray-200 p-8 w-full max-w-lg shadow-sm">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8">
+      <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-8 w-full max-w-lg shadow-sm">
         {/* Header */}
         <div className="text-center mb-2">
           <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">

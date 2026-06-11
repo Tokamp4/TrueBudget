@@ -1,5 +1,5 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { api } from '../../lib/api';
 
@@ -27,7 +27,7 @@ function VerificationBanner({ email }: { email: string }) {
   }
 
   return (
-    <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 flex items-center justify-between gap-4">
+    <div className="bg-amber-50 border-b border-amber-200 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2 sm:gap-4">
       <p className="text-sm text-amber-800">
         📬 Please verify your email address. We sent a link to <span className="font-medium">{email}</span>.
       </p>
@@ -49,6 +49,7 @@ function VerificationBanner({ email }: { email: string }) {
 export default function Layout() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   function handleLogout() {
     logout();
@@ -57,8 +58,20 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen bg-gray-50 font-sans">
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 z-30 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 flex flex-col transform transition-transform duration-200 ease-in-out
+          md:relative md:translate-x-0
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      >
         <div className="p-6 border-b border-gray-100">
           <h1 className="text-xl font-bold text-brand-700">💳 TrueBudget</h1>
           <p className="text-xs text-gray-500 mt-1">Financial clarity</p>
@@ -70,6 +83,7 @@ export default function Layout() {
               key={to}
               to={to}
               end={to === '/'}
+              onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
                   isActive
@@ -106,11 +120,27 @@ export default function Layout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto flex flex-col">
+      <main className="flex-1 overflow-auto flex flex-col min-w-0">
+        {/* Mobile top bar */}
+        <div className="md:hidden flex items-center gap-3 px-4 py-3 border-b border-gray-200 bg-white">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="text-gray-500 hover:text-gray-900 transition-colors"
+            aria-label="Open menu"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+          <h1 className="text-lg font-bold text-brand-700">💳 TrueBudget</h1>
+        </div>
+
         {user && !user.emailVerified && (
           <VerificationBanner email={user.email} />
         )}
-        <div className="max-w-5xl mx-auto p-8 w-full flex-1">
+        <div className="max-w-5xl mx-auto p-4 sm:p-8 w-full flex-1">
           <Outlet />
         </div>
       </main>

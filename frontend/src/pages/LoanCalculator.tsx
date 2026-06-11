@@ -43,7 +43,7 @@ export default function LoanCalculator() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Inputs */}
         <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
           <h2 className="font-semibold text-gray-800">Loan Details</h2>
@@ -108,12 +108,12 @@ export default function LoanCalculator() {
             <h2 className="font-semibold text-green-800 mb-3">💡 Better Alternatives</h2>
             <div className="space-y-2">
               {result.alternatives.map((alt) => (
-                <div key={alt.name} className="flex justify-between items-start text-sm">
+                <div key={alt.name} className="flex justify-between items-start gap-3 flex-wrap text-sm">
                   <a href={alt.link} target="_blank" rel="noreferrer"
-                    className="text-brand-700 underline underline-offset-2 hover:text-brand-900 max-w-[200px]">
+                    className="text-brand-700 underline underline-offset-2 hover:text-brand-900 max-w-full sm:max-w-[200px]">
                     {alt.name}
                   </a>
-                  <span className="font-medium text-green-700">
+                  <span className="font-medium text-green-700 flex-shrink-0">
                     {alt.maxCost === 0 ? 'Free' : `~${formatCurrency(alt.maxCost)}`}
                   </span>
                 </div>
