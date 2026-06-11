@@ -1,36 +1,64 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { usePlaidLink } from 'react-plaid-link';
-import { useIncomeStore } from '../store/incomeStore';
-import { useBillsStore } from '../store/billsStore';
-import { BillCategory, Frequency } from '../types';
-import { frequencyLabel } from '../lib/utils';
-import { api } from '../lib/api';
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { usePlaidLink } from "react-plaid-link";
+import { useIncomeStore } from "../store/incomeStore";
+import { useBillsStore } from "../store/billsStore";
+import { BillCategory, Frequency } from "../types";
+import { frequencyLabel } from "../lib/utils";
+import { api } from "../lib/api";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type Step = 'bank' | 'income' | 'bills';
-const STEPS: Step[] = ['bank', 'income', 'bills'];
+type Step = "bank" | "income" | "bills";
+const STEPS: Step[] = ["bank", "income", "bills"];
 
-const STEP_META: Record<Step, { title: string; subtitle: string; emoji: string }> = {
-  bank:   { emoji: '🏦', title: 'Connect your bank',      subtitle: 'Import transactions automatically with Plaid' },
-  income: { emoji: '💵', title: 'How do you get paid?',   subtitle: 'Add your income sources so we can calculate your safe-to-spend' },
-  bills:  { emoji: '📋', title: 'What bills do you have?', subtitle: 'Add your recurring bills so nothing slips through the cracks' },
+const STEP_META: Record<
+  Step,
+  { title: string; subtitle: string; emoji: string }
+> = {
+  bank: {
+    emoji: "🏦",
+    title: "Connect your bank",
+    subtitle: "Import transactions automatically with Plaid",
+  },
+  income: {
+    emoji: "💵",
+    title: "How do you get paid?",
+    subtitle: "Add your income sources so we can calculate your safe-to-spend",
+  },
+  bills: {
+    emoji: "📋",
+    title: "What bills do you have?",
+    subtitle: "Add your recurring bills so nothing slips through the cracks",
+  },
 };
 
-const FREQUENCIES: Frequency[] = ['WEEKLY', 'BIWEEKLY', 'SEMIMONTHLY', 'MONTHLY'];
+const FREQUENCIES: Frequency[] = [
+  "WEEKLY",
+  "BIWEEKLY",
+  "SEMIMONTHLY",
+  "MONTHLY",
+];
 
 const CATEGORIES: BillCategory[] = [
-  'HOUSING', 'UTILITIES', 'FOOD', 'TRANSPORTATION',
-  'HEALTHCARE', 'DEBT', 'INSURANCE', 'CHILDCARE', 'SUBSCRIPTIONS', 'OTHER',
+  "HOUSING",
+  "UTILITIES",
+  "FOOD",
+  "TRANSPORTATION",
+  "HEALTHCARE",
+  "DEBT",
+  "INSURANCE",
+  "CHILDCARE",
+  "SUBSCRIPTIONS",
+  "OTHER",
 ];
 
 const SEVERITY_OPTIONS = [
-  { value: 5, label: 'Critical — eviction / utilities cut off' },
-  { value: 4, label: 'High — late fees / collections risk' },
-  { value: 3, label: 'Moderate — service disruption' },
-  { value: 2, label: 'Minor — convenience impact' },
-  { value: 1, label: 'Low — easily deferred' },
+  { value: 5, label: "Critical — eviction / utilities cut off" },
+  { value: 4, label: "High — late fees / collections risk" },
+  { value: 3, label: "Moderate — service disruption" },
+  { value: 2, label: "Minor — convenience impact" },
+  { value: 1, label: "Low — easily deferred" },
 ];
 
 // ─── Step indicator ───────────────────────────────────────────────────────────
@@ -42,7 +70,11 @@ function StepDots({ current }: { current: number }) {
         <div
           key={i}
           className={`h-2 rounded-full transition-all duration-300 ${
-            i === current ? 'w-6 bg-brand-600' : i < current ? 'w-2 bg-brand-300' : 'w-2 bg-gray-200'
+            i === current
+              ? "w-6 bg-brand-600"
+              : i < current
+              ? "w-2 bg-brand-300"
+              : "w-2 bg-gray-200"
           }`}
         />
       ))}
@@ -52,40 +84,55 @@ function StepDots({ current }: { current: number }) {
 
 // ─── Step 1: Bank ─────────────────────────────────────────────────────────────
 
-function BankStep({ onNext, onSkip }: { onNext: () => void; onSkip: () => void }) {
+function BankStep({
+  onNext,
+  onSkip,
+}: {
+  onNext: () => void;
+  onSkip: () => void;
+}) {
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [loadingToken, setLoadingToken] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [connected, setConnected] = useState<string | null>(null); // institution name
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   // Fetch a link token from the backend on mount
   useEffect(() => {
-    api.post('/plaid/link-token')
+    api
+      .post("/plaid/link-token")
       .then(({ data }) => setLinkToken(data.link_token))
-      .catch(() => setError('Could not initialise Plaid. Check your PLAID_CLIENT_ID and PLAID-SECRET in the backend .env.'))
+      .catch(() =>
+        setError(
+          "Could not initialise Plaid. Check your PLAID_CLIENT_ID and PLAID-SECRET in the backend .env."
+        )
+      )
       .finally(() => setLoadingToken(false));
   }, []);
 
   // Called by react-plaid-link after the user completes the Plaid flow
   const onSuccess = useCallback(async (publicToken: string) => {
     setSyncing(true);
-    setError('');
+    setError("");
     try {
       // Exchange public token → access token stored in DB
-      const { data } = await api.post('/plaid/exchange-token', { public_token: publicToken });
+      const { data } = await api.post("/plaid/exchange-token", {
+        public_token: publicToken,
+      });
       // Pull transactions immediately so the dashboard has real data
-      await api.post('/plaid/sync');
+      await api.post("/plaid/sync");
       setConnected(data.institution);
     } catch {
-      setError('Bank connected but transaction sync failed. You can retry from settings later.');
+      setError(
+        "Bank connected but transaction sync failed. You can retry from settings later."
+      );
     } finally {
       setSyncing(false);
     }
   }, []);
 
   const { open, ready } = usePlaidLink({
-    token: linkToken ?? '',
+    token: linkToken ?? "",
     onSuccess,
   });
 
@@ -97,7 +144,8 @@ function BankStep({ onNext, onSkip }: { onNext: () => void; onSkip: () => void }
       <div>
         <h2 className="text-xl font-bold text-gray-900">Connect your bank</h2>
         <p className="text-sm text-gray-500 mt-1 max-w-xs mx-auto">
-          Link your account with Plaid to automatically pull in transactions and get a real balance for safe-to-spend.
+          Link your account with Plaid to automatically pull in transactions and
+          get a real balance for safe-to-spend.
         </p>
       </div>
 
@@ -111,8 +159,12 @@ function BankStep({ onNext, onSkip }: { onNext: () => void; onSkip: () => void }
         // Success state — show confirmation and let them continue
         <div className="bg-brand-50 border border-brand-100 rounded-xl p-5 space-y-3">
           <p className="text-2xl">✅</p>
-          <p className="text-sm font-semibold text-brand-700">{connected} connected!</p>
-          <p className="text-xs text-gray-500">Transactions have been imported.</p>
+          <p className="text-sm font-semibold text-brand-700">
+            {connected} connected!
+          </p>
+          <p className="text-xs text-gray-500">
+            Transactions have been imported.
+          </p>
           <button
             onClick={onNext}
             className="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg transition-colors"
@@ -123,10 +175,27 @@ function BankStep({ onNext, onSkip }: { onNext: () => void; onSkip: () => void }
       ) : (
         <div className="space-y-3">
           <div className="bg-gray-50 rounded-xl border border-dashed border-gray-200 p-4 text-left space-y-1">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Sandbox test credentials</p>
-            <p className="text-xs text-gray-500">Username: <span className="font-mono bg-white px-1 rounded border">user_good</span></p>
-            <p className="text-xs text-gray-500">Password: <span className="font-mono bg-white px-1 rounded border">pass_good</span></p>
-            <p className="text-xs text-gray-500">MFA code: <span className="font-mono bg-white px-1 rounded border">1234</span></p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              Sandbox test credentials
+            </p>
+            <p className="text-xs text-gray-500">
+              Username:{" "}
+              <span className="font-mono bg-white px-1 rounded border">
+                user_good
+              </span>
+            </p>
+            <p className="text-xs text-gray-500">
+              Password:{" "}
+              <span className="font-mono bg-white px-1 rounded border">
+                pass_good
+              </span>
+            </p>
+            <p className="text-xs text-gray-500">
+              MFA code:{" "}
+              <span className="font-mono bg-white px-1 rounded border">
+                1234
+              </span>
+            </p>
           </div>
 
           <button
@@ -134,34 +203,56 @@ function BankStep({ onNext, onSkip }: { onNext: () => void; onSkip: () => void }
             disabled={!ready || loadingToken || syncing}
             className="w-full py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
           >
-            {loadingToken ? 'Initialising…' : syncing ? 'Syncing transactions…' : 'Connect Bank Account'}
+            {loadingToken
+              ? "Initialising…"
+              : syncing
+              ? "Syncing transactions…"
+              : "Connect Bank Account"}
+          </button>
+          <button
+            onClick={onSkip}
+            disabled={!ready || loadingToken || syncing}
+            className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            I don't have a bank account to connect — skip this step
           </button>
         </div>
       )}
-
-      <button
-        onClick={onSkip}
-        className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
-      >
-        I don't have a bank account to connect — skip this step
-      </button>
     </div>
   );
 }
 
 // ─── Step 2: Income ───────────────────────────────────────────────────────────
 
-type IncomeEntry = { name: string; amount: string; frequency: Frequency; nextPayDate: string };
-const EMPTY_INCOME: IncomeEntry = { name: '', amount: '', frequency: 'BIWEEKLY', nextPayDate: '' };
+type IncomeEntry = {
+  name: string;
+  amount: string;
+  frequency: Frequency;
+  nextPayDate: string;
+};
+const EMPTY_INCOME: IncomeEntry = {
+  name: "",
+  amount: "",
+  frequency: "BIWEEKLY",
+  nextPayDate: "",
+};
 
-function IncomeStep({ onNext, onSkip }: { onNext: () => void; onSkip: () => void }) {
+function IncomeStep({
+  onNext,
+  onSkip,
+}: {
+  onNext: () => void;
+  onSkip: () => void;
+}) {
   const { createIncome } = useIncomeStore();
   const [entries, setEntries] = useState<IncomeEntry[]>([{ ...EMPTY_INCOME }]);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   function updateEntry(i: number, patch: Partial<IncomeEntry>) {
-    setEntries((prev) => prev.map((e, idx) => (idx === i ? { ...e, ...patch } : e)));
+    setEntries((prev) =>
+      prev.map((e, idx) => (idx === i ? { ...e, ...patch } : e))
+    );
   }
 
   function addAnother() {
@@ -174,10 +265,13 @@ function IncomeStep({ onNext, onSkip }: { onNext: () => void; onSkip: () => void
 
   async function handleSave() {
     const filled = entries.filter((e) => e.name && e.amount && e.nextPayDate);
-    if (filled.length === 0) { onSkip(); return; }
+    if (filled.length === 0) {
+      onSkip();
+      return;
+    }
 
     setSaving(true);
-    setError('');
+    setError("");
     try {
       await Promise.all(
         filled.map((e) =>
@@ -191,7 +285,7 @@ function IncomeStep({ onNext, onSkip }: { onNext: () => void; onSkip: () => void
       );
       onNext();
     } catch {
-      setError('Something went wrong saving your income. Please try again.');
+      setError("Something went wrong saving your income. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -203,8 +297,12 @@ function IncomeStep({ onNext, onSkip }: { onNext: () => void; onSkip: () => void
         <div className="mx-auto w-16 h-16 bg-brand-50 rounded-2xl flex items-center justify-center text-3xl mb-4">
           💵
         </div>
-        <h2 className="text-xl font-bold text-gray-900">How do you get paid?</h2>
-        <p className="text-sm text-gray-500 mt-1">Add your income sources — you can always edit these later.</p>
+        <h2 className="text-xl font-bold text-gray-900">
+          How do you get paid?
+        </h2>
+        <p className="text-sm text-gray-500 mt-1">
+          Add your income sources — you can always edit these later.
+        </p>
       </div>
 
       {error && (
@@ -226,7 +324,9 @@ function IncomeStep({ onNext, onSkip }: { onNext: () => void; onSkip: () => void
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="col-span-2">
-                <label className="block text-xs font-medium text-gray-600 mb-1">Source name</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Source name
+                </label>
                 <input
                   placeholder="e.g. Main Job, DoorDash"
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
@@ -235,32 +335,49 @@ function IncomeStep({ onNext, onSkip }: { onNext: () => void; onSkip: () => void
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Amount ($)</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Amount ($)
+                </label>
                 <input
-                  type="number" min="0.01" step="0.01" placeholder="0.00"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="0.00"
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
                   value={entry.amount}
                   onChange={(e) => updateEntry(i, { amount: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Frequency</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Frequency
+                </label>
                 <select
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
                   value={entry.frequency}
-                  onChange={(e) => updateEntry(i, { frequency: e.target.value as Frequency })}
+                  onChange={(e) =>
+                    updateEntry(i, { frequency: e.target.value as Frequency })
+                  }
                 >
-                  {FREQUENCIES.map((f) => <option key={f} value={f}>{frequencyLabel(f)}</option>)}
+                  {FREQUENCIES.map((f) => (
+                    <option key={f} value={f}>
+                      {frequencyLabel(f)}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="col-span-2">
-                <label className="block text-xs font-medium text-gray-600 mb-1">Next pay date</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Next pay date
+                </label>
                 <input
                   type="date"
                   min={new Date().toISOString().slice(0, 10)}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
                   value={entry.nextPayDate}
-                  onChange={(e) => updateEntry(i, { nextPayDate: e.target.value })}
+                  onChange={(e) =>
+                    updateEntry(i, { nextPayDate: e.target.value })
+                  }
                 />
               </div>
             </div>
@@ -277,10 +394,11 @@ function IncomeStep({ onNext, onSkip }: { onNext: () => void; onSkip: () => void
 
       <div className="flex flex-col gap-2 pt-1">
         <button
-          onClick={handleSave} disabled={saving}
+          onClick={handleSave}
+          disabled={saving}
           className="w-full py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
         >
-          {saving ? 'Saving…' : 'Save & Continue'}
+          {saving ? "Saving…" : "Save & Continue"}
         </button>
         <button
           onClick={onSkip}
@@ -295,17 +413,37 @@ function IncomeStep({ onNext, onSkip }: { onNext: () => void; onSkip: () => void
 
 // ─── Step 3: Bills ────────────────────────────────────────────────────────────
 
-type BillEntry = { name: string; amount: string; dueDate: string; category: BillCategory; consequenceSeverity: number };
-const EMPTY_BILL: BillEntry = { name: '', amount: '', dueDate: '', category: 'OTHER', consequenceSeverity: 3 };
+type BillEntry = {
+  name: string;
+  amount: string;
+  dueDate: string;
+  category: BillCategory;
+  consequenceSeverity: number;
+};
+const EMPTY_BILL: BillEntry = {
+  name: "",
+  amount: "",
+  dueDate: "",
+  category: "OTHER",
+  consequenceSeverity: 3,
+};
 
-function BillsStep({ onFinish, onSkip }: { onFinish: () => void; onSkip: () => void }) {
+function BillsStep({
+  onFinish,
+  onSkip,
+}: {
+  onFinish: () => void;
+  onSkip: () => void;
+}) {
   const { createBill } = useBillsStore();
   const [entries, setEntries] = useState<BillEntry[]>([{ ...EMPTY_BILL }]);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   function updateEntry(i: number, patch: Partial<BillEntry>) {
-    setEntries((prev) => prev.map((e, idx) => (idx === i ? { ...e, ...patch } : e)));
+    setEntries((prev) =>
+      prev.map((e, idx) => (idx === i ? { ...e, ...patch } : e))
+    );
   }
 
   function addAnother() {
@@ -318,10 +456,13 @@ function BillsStep({ onFinish, onSkip }: { onFinish: () => void; onSkip: () => v
 
   async function handleSave() {
     const filled = entries.filter((e) => e.name && e.amount && e.dueDate);
-    if (filled.length === 0) { onSkip(); return; }
+    if (filled.length === 0) {
+      onSkip();
+      return;
+    }
 
     setSaving(true);
-    setError('');
+    setError("");
     try {
       await Promise.all(
         filled.map((e) =>
@@ -337,7 +478,7 @@ function BillsStep({ onFinish, onSkip }: { onFinish: () => void; onSkip: () => v
       );
       onFinish();
     } catch {
-      setError('Something went wrong saving your bills. Please try again.');
+      setError("Something went wrong saving your bills. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -349,8 +490,12 @@ function BillsStep({ onFinish, onSkip }: { onFinish: () => void; onSkip: () => v
         <div className="mx-auto w-16 h-16 bg-brand-50 rounded-2xl flex items-center justify-center text-3xl mb-4">
           📋
         </div>
-        <h2 className="text-xl font-bold text-gray-900">What bills do you have?</h2>
-        <p className="text-sm text-gray-500 mt-1">Add your recurring bills — you can always add more later.</p>
+        <h2 className="text-xl font-bold text-gray-900">
+          What bills do you have?
+        </h2>
+        <p className="text-sm text-gray-500 mt-1">
+          Add your recurring bills — you can always add more later.
+        </p>
       </div>
 
       {error && (
@@ -372,7 +517,9 @@ function BillsStep({ onFinish, onSkip }: { onFinish: () => void; onSkip: () => v
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="col-span-2">
-                <label className="block text-xs font-medium text-gray-600 mb-1">Bill name</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Bill name
+                </label>
                 <input
                   placeholder="e.g. Rent, Electricity"
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
@@ -381,16 +528,23 @@ function BillsStep({ onFinish, onSkip }: { onFinish: () => void; onSkip: () => v
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Amount ($)</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Amount ($)
+                </label>
                 <input
-                  type="number" min="0.01" step="0.01" placeholder="0.00"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="0.00"
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
                   value={entry.amount}
                   onChange={(e) => updateEntry(i, { amount: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Due date</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Due date
+                </label>
                 <input
                   type="date"
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
@@ -399,26 +553,40 @@ function BillsStep({ onFinish, onSkip }: { onFinish: () => void; onSkip: () => v
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Category</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Category
+                </label>
                 <select
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
                   value={entry.category}
-                  onChange={(e) => updateEntry(i, { category: e.target.value as BillCategory })}
+                  onChange={(e) =>
+                    updateEntry(i, { category: e.target.value as BillCategory })
+                  }
                 >
                   {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>{c.charAt(0) + c.slice(1).toLowerCase()}</option>
+                    <option key={c} value={c}>
+                      {c.charAt(0) + c.slice(1).toLowerCase()}
+                    </option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Severity</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Severity
+                </label>
                 <select
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
                   value={entry.consequenceSeverity}
-                  onChange={(e) => updateEntry(i, { consequenceSeverity: Number(e.target.value) })}
+                  onChange={(e) =>
+                    updateEntry(i, {
+                      consequenceSeverity: Number(e.target.value),
+                    })
+                  }
                 >
                   {SEVERITY_OPTIONS.map((s) => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -436,10 +604,11 @@ function BillsStep({ onFinish, onSkip }: { onFinish: () => void; onSkip: () => v
 
       <div className="flex flex-col gap-2 pt-1">
         <button
-          onClick={handleSave} disabled={saving}
+          onClick={handleSave}
+          disabled={saving}
           className="w-full py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
         >
-          {saving ? 'Saving…' : 'Save & Go to Dashboard'}
+          {saving ? "Saving…" : "Save & Go to Dashboard"}
         </button>
         {/* <button
           onClick={onSkip}
@@ -460,10 +629,10 @@ export default function Onboarding() {
 
   const next = () => {
     if (stepIndex < STEPS.length - 1) setStepIndex((i) => i + 1);
-    else navigate('/');
+    else navigate("/");
   };
 
-  const finish = () => navigate('/');
+  const finish = () => navigate("/");
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8">
@@ -478,13 +647,13 @@ export default function Onboarding() {
         <StepDots current={stepIndex} />
 
         {/* Steps */}
-        {STEPS[stepIndex] === 'bank' && (
+        {STEPS[stepIndex] === "bank" && (
           <BankStep onNext={next} onSkip={next} />
         )}
-        {STEPS[stepIndex] === 'income' && (
+        {STEPS[stepIndex] === "income" && (
           <IncomeStep onNext={next} onSkip={next} />
         )}
-        {STEPS[stepIndex] === 'bills' && (
+        {STEPS[stepIndex] === "bills" && (
           <BillsStep onFinish={finish} onSkip={finish} />
         )}
       </div>

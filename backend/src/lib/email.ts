@@ -20,11 +20,13 @@ export async function sendVerificationEmail(to: string, firstName: string, token
         <p style="color:#444;font-size:15px;margin-bottom:24px">
           Hi ${firstName}, thanks for signing up! Please verify your email address to confirm your account.
         </p>
-        <a href="${link}"
-           style="display:inline-block;background:#16a34a;color:#fff;font-size:14px;font-weight:600;
-                  padding:12px 24px;border-radius:8px;text-decoration:none">
-          Verify Email Address
-        </a>
+        <div style="text-align:center">
+          <a href="${link}"
+             style="display:inline-block;background:#16a34a;color:#fff;font-size:14px;font-weight:600;
+                    padding:12px 24px;border-radius:8px;text-decoration:none">
+            Verify Email Address
+          </a>
+        </div>
         <p style="color:#888;font-size:12px;margin-top:24px">
           This link expires in 24 hours. If you didn't create a TrueBudget account, you can safely ignore this email.
         </p>
@@ -55,11 +57,13 @@ export async function sendPasswordResetEmail(to: string, firstName: string, toke
         <p style="color:#444;font-size:15px;margin-bottom:24px">
           Hi ${firstName}, we received a request to reset your password. Click the button below to choose a new one.
         </p>
-        <a href="${link}"
-           style="display:inline-block;background:#16a34a;color:#fff;font-size:14px;font-weight:600;
-                  padding:12px 24px;border-radius:8px;text-decoration:none">
-          Reset Password
-        </a>
+        <div style="text-align:center">
+          <a href="${link}"
+             style="display:inline-block;background:#16a34a;color:#fff;font-size:14px;font-weight:600;
+                    padding:12px 24px;border-radius:8px;text-decoration:none">
+            Reset Password
+          </a>
+        </div>
         <p style="color:#888;font-size:12px;margin-top:24px">
           This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email — your password won't change.
         </p>
