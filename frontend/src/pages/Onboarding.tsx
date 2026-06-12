@@ -84,13 +84,8 @@ function StepDots({ current }: { current: number }) {
 
 // ─── Step 1: Bank ─────────────────────────────────────────────────────────────
 
-function BankStep({
-  onNext,
-  onSkip,
-}: {
-  onNext: () => void;
-  onSkip: () => void;
-}) {
+function BankStep({ onSkip }: { onSkip: () => void }) {
+  const navigate = useNavigate();
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [loadingToken, setLoadingToken] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -166,7 +161,7 @@ function BankStep({
             Transactions have been imported.
           </p>
           <button
-            onClick={onNext}
+            onClick={() => navigate("/suggestions")}
             className="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg transition-colors"
           >
             Continue
@@ -647,9 +642,7 @@ export default function Onboarding() {
         <StepDots current={stepIndex} />
 
         {/* Steps */}
-        {STEPS[stepIndex] === "bank" && (
-          <BankStep onNext={next} onSkip={next} />
-        )}
+        {STEPS[stepIndex] === "bank" && <BankStep onSkip={next} />}
         {STEPS[stepIndex] === "income" && (
           <IncomeStep onNext={next} onSkip={next} />
         )}

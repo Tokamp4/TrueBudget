@@ -1,8 +1,10 @@
 import { Response } from 'express';
 import { CountryCode, Products } from 'plaid';
+import { subDays } from 'date-fns';
 import { plaidClient } from '../lib/plaid';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
+import { detectRecurring, Suggestion } from '../services/recurringDetection.service';
 
 // Step 1: Create a link token (frontend uses this to open Plaid Link)
 export async function createLinkToken(req: AuthRequest, res: Response) {
@@ -61,16 +63,16 @@ export async function syncTransactions(req: AuthRequest, res: Response) {
 
     for (const txn of response.data.transactions) {
       const category = txn.personal_finance_category?.primary || 'OTHER';
-      const isIncome = category === 'INCOME' || category === 'TRANSFER_IN';
+      // Plaid's amount sign is authoritative: positive = money leaving the
+      // account (expense), negative = money entering it (income/refund/credit).
+      const isIncome = txn.amount < 0;
 
       await prisma.transaction.upsert({
         where: { plaidId: txn.transaction_id },
         update: {},
         create: {
           userId: req.userId!,
-          // Income is always stored as a positive amount. Expenses keep Plaid's
-          // signed amount so refunds/credits (negative) net against spending.
-          amount: isIncome ? Math.abs(txn.amount) : txn.amount,
+          amount: Math.abs(txn.amount),
           type: isIncome ? 'INCOME' : 'EXPENSE',
           date: new Date(txn.date),
           category,
@@ -84,6 +86,38 @@ export async function syncTransactions(req: AuthRequest, res: Response) {
   }
 
   res.json({ synced: totalSynced });
+}
+
+export async function getSuggestions(req: AuthRequest, res: Response) {
+  const userId = req.userId!;
+
+  const transactions = await prisma.transaction.findMany({
+    where: { userId, source: 'plaid', date: { gte: subDays(new Date(), 90) } },
+    orderBy: { date: 'asc' },
+  });
+
+  const suggestions = detectRecurring(transactions);
+
+  const [bills, incomeSources] = await Promise.all([
+    prisma.bill.findMany({ where: { userId } }),
+    prisma.incomeSource.findMany({ where: { userId } }),
+  ]);
+
+  // A suggestion is already covered if an existing record has the same amount,
+  // or its name contains the first 6 characters of the detected merchant name.
+  function alreadyTracked(suggestion: Suggestion, existing: { name: string; amount: number }[]): boolean {
+    const prefix = suggestion.merchant.slice(0, 6).toLowerCase();
+    return existing.some((e) => e.amount === suggestion.amount || e.name.toLowerCase().includes(prefix));
+  }
+
+  const filtered = suggestions.filter((s) =>
+    s.type === 'EXPENSE' ? !alreadyTracked(s, bills) : !alreadyTracked(s, incomeSources)
+  );
+
+  res.json({
+    bills: filtered.filter((s) => s.type === 'EXPENSE'),
+    income: filtered.filter((s) => s.type === 'INCOME'),
+  });
 }
 
 export async function getConnectedBanks(req: AuthRequest, res: Response) {
