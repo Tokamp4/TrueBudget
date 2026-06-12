@@ -84,16 +84,24 @@ export default function Login() {
         </form>
 
         <p className="text-center text-sm text-gray-500 mt-3">
-          <Link to="/forgot-password" className="text-brand-700 hover:underline">
-            Forgot your password?
-          </Link>
+          {loading ? (
+            <span className="text-gray-300 cursor-not-allowed">Forgot your password?</span>
+          ) : (
+            <Link to="/forgot-password" className="text-brand-700 hover:underline">
+              Forgot your password?
+            </Link>
+          )}
         </p>
 
         <p className="text-center text-sm text-gray-500 mt-2">
           No account?{' '}
-          <Link to="/register" className="text-brand-700 hover:underline">
-            Create one
-          </Link>
+          {loading ? (
+            <span className="text-gray-300 cursor-not-allowed">Create one</span>
+          ) : (
+            <Link to="/register" className="text-brand-700 hover:underline">
+              Create one
+            </Link>
+          )}
         </p>
       </div>
     </div>
