@@ -9,6 +9,7 @@ const navItems = [
   { to: '/income',     icon: '💰', label: 'Income' },
   // { to: '/planner',    icon: '📅', label: 'Paycheck Planner' },
   { to: '/calculator', icon: '🧮', label: 'Loan Calculator' },
+  { to: '/settings',   icon: '⚙️', label: 'Settings' },
   // { to: '/history',    icon: '🕒', label: 'History' },
 ];
 

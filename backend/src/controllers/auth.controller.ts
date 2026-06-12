@@ -204,3 +204,21 @@ export async function me(req: Request & { userId?: string }, res: Response) {
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json(user);
 }
+
+const deleteAccountSchema = z.object({
+  password: z.string().min(1),
+});
+
+export async function deleteAccount(req: Request & { userId?: string }, res: Response) {
+  const result = deleteAccountSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ error: result.error.flatten() });
+
+  const user = await prisma.user.findUnique({ where: { id: req.userId! } });
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  const isMatch = await bcrypt.compare(result.data.password, user.passwordHash);
+  if (!isMatch) return res.status(401).json({ error: 'Incorrect password' });
+
+  await prisma.user.delete({ where: { id: user.id } });
+  res.json({ message: 'Account deleted' });
+}

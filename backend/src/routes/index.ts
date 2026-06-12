@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { register, login, me, verifyEmail, resendVerification, forgotPassword, resetPassword } from '../controllers/auth.controller';
+import { register, login, me, verifyEmail, resendVerification, forgotPassword, resetPassword, deleteAccount } from '../controllers/auth.controller';
 import { getBills, createBill, updateBill, deleteBill } from '../controllers/bills.controller';
 import { getIncome, createIncome, updateIncome, deleteIncome } from '../controllers/income.controller';
 import { getTransactions, createTransaction, deleteTransaction } from '../controllers/transactions.controller';
 import { computeHealthScore, getHealthHistory } from '../controllers/health.controller';
-import { createLinkToken, exchangePublicToken, syncTransactions, getConnectedBanks } from '../controllers/plaid.controller';
+import { createLinkToken, exchangePublicToken, syncTransactions, getConnectedBanks, getSuggestions } from '../controllers/plaid.controller';
 import { authenticate } from '../middleware/auth';
 
 const router = Router();
@@ -17,6 +17,7 @@ router.get('/auth/verify-email', verifyEmail);
 router.post('/auth/resend-verification', authenticate, resendVerification);
 router.post('/auth/forgot-password', forgotPassword);
 router.post('/auth/reset-password', resetPassword);
+router.delete('/auth/me', authenticate, deleteAccount);
 
 // Bills
 router.get('/bills', authenticate, getBills);
@@ -44,5 +45,6 @@ router.post('/plaid/link-token', authenticate, createLinkToken);
 router.post('/plaid/exchange-token', authenticate, exchangePublicToken);
 router.post('/plaid/sync', authenticate, syncTransactions);
 router.get('/plaid/banks', authenticate, getConnectedBanks);
+router.get('/plaid/suggestions', authenticate, getSuggestions);
 
 export default router;

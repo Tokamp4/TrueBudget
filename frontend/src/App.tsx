@@ -15,6 +15,7 @@ import VerifyEmail from './pages/VerifyEmail';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Suggestions from './pages/Suggestions';
+import Settings from './pages/Settings';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { token, user, isLoading } = useAuthStore();
@@ -70,6 +71,7 @@ export default function App() {
           <Route path="planner" element={<PaycheckPlanner />} />
           <Route path="calculator" element={<LoanCalculator />} />
           <Route path="history" element={<History />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
     </BrowserRouter>
