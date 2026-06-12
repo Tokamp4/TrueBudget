@@ -60,15 +60,20 @@ export async function syncTransactions(req: AuthRequest, res: Response) {
     });
 
     for (const txn of response.data.transactions) {
+      const category = txn.personal_finance_category?.primary || 'OTHER';
+      const isIncome = category === 'INCOME' || category === 'TRANSFER_IN';
+
       await prisma.transaction.upsert({
         where: { plaidId: txn.transaction_id },
         update: {},
         create: {
           userId: req.userId!,
-          amount: Math.abs(txn.amount),
-          type: txn.amount > 0 ? 'EXPENSE' : 'INCOME',
+          // Income is always stored as a positive amount. Expenses keep Plaid's
+          // signed amount so refunds/credits (negative) net against spending.
+          amount: isIncome ? Math.abs(txn.amount) : txn.amount,
+          type: isIncome ? 'INCOME' : 'EXPENSE',
           date: new Date(txn.date),
-          category: txn.personal_finance_category?.primary || 'OTHER',
+          category,
           note: txn.name,
           source: 'plaid',
           plaidId: txn.transaction_id,

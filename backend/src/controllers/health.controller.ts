@@ -34,10 +34,18 @@ export async function computeHealthScore(req: AuthRequest, res: Response) {
     return sum + s.amount * multipliers[s.frequency];
   }, 0);
 
-  // Monthly expenses
-  const monthlyExpenses = transactions
-    .filter((t) => t.type === 'EXPENSE')
-    .reduce((sum, t) => sum + t.amount, 0);
+  // Transfers between the user's own accounts aren't real income or spending,
+  // so they're excluded from both totals below.
+  const TRANSFER_CATEGORIES = ['TRANSFER_IN', 'TRANSFER_OUT'];
+
+  // Monthly expenses (clamped at 0 — a month with more refunds than spending
+  // shouldn't produce a negative expense total).
+  const monthlyExpenses = Math.max(
+    0,
+    transactions
+      .filter((t) => t.type === 'EXPENSE' && !TRANSFER_CATEGORIES.includes(t.category))
+      .reduce((sum, t) => sum + t.amount, 0)
+  );
 
   // Monthly debt payments
   const debtBills = bills.filter((b) => b.category === 'DEBT');
@@ -52,7 +60,7 @@ export async function computeHealthScore(req: AuthRequest, res: Response) {
   const hasExpenseHistory = monthlyExpenses > 0;
   const dailyExpense = hasExpenseHistory ? monthlyExpenses / 30 : 1;
   const lastIncome = transactions
-    .filter((t) => t.type === 'INCOME')
+    .filter((t) => t.type === 'INCOME' && !TRANSFER_CATEGORIES.includes(t.category))
     .reduce((sum, t) => sum + t.amount, 0);
   const cashEstimate = lastIncome > 0 ? lastIncome : monthlyIncome;
   const bufferDays = hasExpenseHistory
