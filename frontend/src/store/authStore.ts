@@ -39,6 +39,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const { data } = await api.get('/auth/me');
       set({ user: data });
+    } catch (err: any) {
+      if (err?.response?.status === 401 || err?.response?.status === 404) {
+        localStorage.removeItem('tb_token');
+        set({ token: null, user: null });
+      }
     } finally {
       set({ isLoading: false });
     }

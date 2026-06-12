@@ -14,10 +14,14 @@ import Onboarding from './pages/Onboarding';
 import VerifyEmail from './pages/VerifyEmail';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import Suggestions from './pages/Suggestions';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const token = useAuthStore((s) => s.token);
+  const { token, user, isLoading } = useAuthStore();
   if (!token) return <Navigate to="/login" replace />;
+  if (!user && isLoading) {
+    return <div className="min-h-screen bg-gray-50" />;
+  }
   return <>{children}</>;
 }
 
@@ -41,6 +45,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Onboarding />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/suggestions"
+          element={
+            <ProtectedRoute>
+              <Suggestions />
             </ProtectedRoute>
           }
         />
