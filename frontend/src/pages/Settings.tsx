@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { api } from '../lib/api';
@@ -6,6 +6,11 @@ import { api } from '../lib/api';
 export default function Settings() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
+  const mounted = useRef(true);
+
+  useEffect(() => {
+    return () => { mounted.current = false; };
+  }, []);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [password, setPassword] = useState('');
@@ -20,9 +25,12 @@ export default function Settings() {
     setError('');
     try {
       await api.delete('/auth/me', { data: { password } });
+      // Always logout — even if the user navigated away, the account is gone
+      // and fetchMe will 404, but clearing state now avoids a stale-store flash.
       logout();
       navigate('/login');
     } catch (err: any) {
+      if (!mounted.current) return;
       const msg = err?.response?.data?.error;
       if (err?.response?.status === 401) {
         setError('Incorrect password. Please try again.');
@@ -32,7 +40,7 @@ export default function Settings() {
         setError('Something went wrong. Please try again.');
       }
     } finally {
-      setDeleting(false);
+      if (mounted.current) setDeleting(false);
     }
   }
 
@@ -91,12 +99,13 @@ export default function Settings() {
             <div className="flex gap-2">
               <button
                 type="button"
+                disabled={deleting}
                 onClick={() => {
                   setConfirmOpen(false);
                   setPassword('');
                   setError('');
                 }}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 Cancel
               </button>
