@@ -59,16 +59,17 @@ model Bill {
 }
 
 model Transaction {
-  id        String          @id @default(cuid())
-  userId    String
-  amount    Float
-  type      TransactionType
-  date      DateTime
-  category  String
-  note      String?
-  source    String?         // "manual" | "plaid"
-  plaidId   String?         @unique
-  createdAt DateTime        @default(now())
+  id             String          @id @default(cuid())
+  userId         String
+  amount         Float
+  type           TransactionType
+  date           DateTime
+  category       String
+  note           String?
+  source         String?         // "manual" | "plaid"
+  plaidId        String?         @unique
+  plaidAccountId String?         // Plaid account_id — null for manual transactions
+  createdAt      DateTime        @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -87,14 +88,26 @@ model HealthSnapshot {
 
 // Plaid integration
 model PlaidItem {
-  id          String   @id @default(cuid())
+  id          String         @id @default(cuid())
   userId      String
   accessToken String
-  itemId      String   @unique
+  itemId      String         @unique
   institution String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime       @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accounts PlaidAccount[]
+}
+
+model PlaidAccount {
+  id          String    @id @default(cuid())
+  accountId   String    @unique  // Plaid's account_id
+  name        String
+  subtype     String?
+  plaidItemId String
+  createdAt   DateTime  @default(now())
+
+  plaidItem PlaidItem @relation(fields: [plaidItemId], references: [id], onDelete: Cascade)
 }
 
 enum Frequency {
