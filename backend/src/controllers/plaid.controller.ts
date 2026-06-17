@@ -61,6 +61,21 @@ export async function syncTransactions(req: AuthRequest, res: Response) {
       end_date: new Date().toISOString().split('T')[0],
     });
 
+    // Upsert PlaidAccount records for every account returned by this item
+    const accountsResponse = await plaidClient.accountsGet({ access_token: item.accessToken });
+    for (const account of accountsResponse.data.accounts) {
+      await prisma.plaidAccount.upsert({
+        where: { accountId: account.account_id },
+        update: { name: account.name, subtype: account.subtype ?? null },
+        create: {
+          accountId: account.account_id,
+          name: account.name,
+          subtype: account.subtype ?? null,
+          plaidItemId: item.id,
+        },
+      });
+    }
+
     for (const txn of response.data.transactions) {
       const category = txn.personal_finance_category?.primary || 'OTHER';
       // Plaid's amount sign is authoritative: positive = money leaving the
@@ -79,6 +94,7 @@ export async function syncTransactions(req: AuthRequest, res: Response) {
           note: txn.name,
           source: 'plaid',
           plaidId: txn.transaction_id,
+          plaidAccountId: txn.account_id,
         },
       });
       totalSynced++;
@@ -123,7 +139,54 @@ export async function getSuggestions(req: AuthRequest, res: Response) {
 export async function getConnectedBanks(req: AuthRequest, res: Response) {
   const items = await prisma.plaidItem.findMany({
     where: { userId: req.userId! },
-    select: { id: true, institution: true, createdAt: true },
+    select: {
+      id: true,
+      institution: true,
+      createdAt: true,
+      accounts: { select: { accountId: true, name: true, subtype: true } },
+    },
   });
-  res.json(items);
+
+  const response = items.map(({ accounts, ...item }) => ({
+    ...item,
+    accounts: accounts.map((a) => ({ id: a.accountId, name: a.name, subtype: a.subtype })),
+  }));
+
+  res.json(response);
+}
+
+export async function disconnectAccount(req: AuthRequest, res: Response) {
+  const userId = req.userId!;
+  const { accountId } = req.params;
+
+  const account = await prisma.plaidAccount.findUnique({
+    where: { accountId },
+    include: { plaidItem: true },
+  });
+
+  if (!account || account.plaidItem.userId !== userId) {
+    return res.status(404).json({ error: 'Account not found' });
+  }
+
+  // Delete all transactions from this account
+  await prisma.transaction.deleteMany({ where: { userId, plaidAccountId: accountId } });
+
+  // Delete the account record
+  await prisma.plaidAccount.delete({ where: { accountId } });
+
+  // If no accounts remain under the institution, remove the PlaidItem entirely
+  const remainingAccounts = await prisma.plaidAccount.count({
+    where: { plaidItemId: account.plaidItemId },
+  });
+
+  if (remainingAccounts === 0) {
+    try {
+      await plaidClient.itemRemove({ access_token: account.plaidItem.accessToken });
+    } catch {
+      // itemRemove failing (e.g. already invalidated) shouldn't block cleanup
+    }
+    await prisma.plaidItem.delete({ where: { id: account.plaidItemId } });
+  }
+
+  res.json({ success: true });
 }

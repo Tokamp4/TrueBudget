@@ -127,7 +127,7 @@ function BankStep({ onSkip }: { onSkip: () => void }) {
   }, []);
 
   const { open, ready } = usePlaidLink({
-    token: linkToken ?? "",
+    token: linkToken,
     onSuccess,
   });
 

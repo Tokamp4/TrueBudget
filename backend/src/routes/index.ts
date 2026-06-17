@@ -4,7 +4,7 @@ import { getBills, createBill, updateBill, deleteBill } from '../controllers/bil
 import { getIncome, createIncome, updateIncome, deleteIncome } from '../controllers/income.controller';
 import { getTransactions, createTransaction, deleteTransaction } from '../controllers/transactions.controller';
 import { computeHealthScore, getHealthHistory } from '../controllers/health.controller';
-import { createLinkToken, exchangePublicToken, syncTransactions, getConnectedBanks, getSuggestions } from '../controllers/plaid.controller';
+import { createLinkToken, exchangePublicToken, syncTransactions, getConnectedBanks, disconnectAccount, getSuggestions } from '../controllers/plaid.controller';
 import { authenticate } from '../middleware/auth';
 
 const router = Router();
@@ -45,6 +45,7 @@ router.post('/plaid/link-token', authenticate, createLinkToken);
 router.post('/plaid/exchange-token', authenticate, exchangePublicToken);
 router.post('/plaid/sync', authenticate, syncTransactions);
 router.get('/plaid/banks', authenticate, getConnectedBanks);
+router.delete('/plaid/accounts/:accountId', authenticate, disconnectAccount);
 router.get('/plaid/suggestions', authenticate, getSuggestions);
 
 export default router;
