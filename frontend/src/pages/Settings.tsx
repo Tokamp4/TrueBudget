@@ -3,18 +3,52 @@ import { useNavigate } from 'react-router-dom';
 import { usePlaidLink } from 'react-plaid-link';
 import { useAuthStore } from '../store/authStore';
 import { useHealthStore } from '../store/incomeStore';
+import { AccountRole } from '../types';
 import { api } from '../lib/api';
 import { formatDate } from '../lib/utils';
+
+const ROLE_LABELS: Record<AccountRole, string> = {
+  PRIMARY:      'Primary',
+  SECONDARY:    'Secondary',
+  BALANCE_ONLY: 'Balance only',
+};
+
+const ROLE_STYLES: Record<AccountRole, string> = {
+  PRIMARY:      'bg-brand-50 text-brand-700',
+  SECONDARY:    'bg-gray-100 text-gray-600',
+  BALANCE_ONLY: 'bg-amber-50 text-amber-700',
+};
 
 function AccountRow({
   account,
   onDisconnect,
+  onRoleChange,
 }: {
-  account: { id: string; name: string; subtype: string | null };
+  account: { id: string; name: string; subtype: string | null; role: AccountRole };
   onDisconnect: () => void;
+  onRoleChange: () => void;
 }) {
+  const [role, setRole] = useState<AccountRole>(account.role);
+  const [savingRole, setSavingRole] = useState(false);
+
+  // Sync local role state when the parent re-fetches and passes updated props
+  // (e.g. another account was promoted to PRIMARY, demoting this one)
+  useEffect(() => {
+    setRole(account.role);
+  }, [account.role]);
   const [confirming, setConfirming] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+
+  async function handleRoleChange(next: AccountRole) {
+    setSavingRole(true);
+    try {
+      await api.patch(`/plaid/accounts/${account.id}/role`, { role: next });
+      setRole(next);
+      onRoleChange(); // refresh list so previous primary badge updates
+    } finally {
+      setSavingRole(false);
+    }
+  }
 
   async function handleDisconnect() {
     setDisconnecting(true);
@@ -28,38 +62,60 @@ function AccountRow({
   }
 
   return (
-    <li className="flex items-center justify-between gap-2">
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-400 capitalize">{account.subtype ?? 'account'}</span>
+    <li className="flex items-start justify-between gap-3 py-1">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="text-xs text-gray-400 capitalize flex-shrink-0">
+          {account.subtype ?? 'account'}
+        </span>
         <span className="text-gray-200">·</span>
-        <span className="text-xs text-gray-600">{account.name}</span>
+        <span className="text-xs text-gray-700 truncate">{account.name}</span>
+        <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${ROLE_STYLES[role]}`}>
+          {ROLE_LABELS[role]}
+        </span>
+        {savingRole && <span className="text-xs text-gray-300">Saving…</span>}
       </div>
 
-      {confirming ? (
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">Remove and delete its transactions?</span>
-          <button
-            onClick={handleDisconnect}
-            disabled={disconnecting}
-            className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50 transition-colors"
-          >
-            {disconnecting ? 'Removing…' : 'Confirm'}
-          </button>
-          <button
-            onClick={() => setConfirming(false)}
-            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      ) : (
-        <button
-          onClick={() => setConfirming(true)}
-          className="text-xs text-gray-300 hover:text-red-500 transition-colors"
+      <div className="flex items-center gap-3 flex-shrink-0">
+        {/* Role selector */}
+        <select
+          value={role}
+          disabled={savingRole || disconnecting}
+          onChange={(e) => handleRoleChange(e.target.value as AccountRole)}
+          className="text-xs border border-gray-200 rounded-md px-1.5 py-1 text-gray-600 bg-white focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-40"
         >
-          Disconnect
-        </button>
-      )}
+          <option value="PRIMARY">Primary</option>
+          <option value="SECONDARY">Secondary</option>
+          <option value="BALANCE_ONLY">Balance only</option>
+        </select>
+
+        {/* Disconnect */}
+        {confirming ? (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">Delete its transactions?</span>
+            <button
+              onClick={handleDisconnect}
+              disabled={disconnecting}
+              className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50 transition-colors"
+            >
+              {disconnecting ? 'Removing…' : 'Confirm'}
+            </button>
+            <button
+              onClick={() => setConfirming(false)}
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirming(true)}
+            disabled={savingRole}
+            className="text-xs text-gray-300 hover:text-red-500 disabled:opacity-40 transition-colors"
+          >
+            Disconnect
+          </button>
+        )}
+      </div>
     </li>
   );
 }
@@ -201,7 +257,8 @@ export default function Settings() {
                       <AccountRow
                         key={account.id}
                         account={account}
-                        onDisconnect={() => fetchBanks()}
+                        onDisconnect={fetchBanks}
+                        onRoleChange={fetchBanks}
                       />
                     ))}
                   </ul>

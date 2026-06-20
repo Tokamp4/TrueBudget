@@ -58,9 +58,11 @@ export interface HealthSnapshot {
   createdAt: string;
 }
 
+export type AccountRole = 'PRIMARY' | 'SECONDARY' | 'BALANCE_ONLY';
+
 export interface ConnectedBank {
   id: string;
   institution: string;
   createdAt: string;
-  accounts: { id: string; name: string; subtype: string | null }[];
+  accounts: { id: string; name: string; subtype: string | null; role: AccountRole }[];
 }
