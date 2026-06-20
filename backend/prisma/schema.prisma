@@ -100,14 +100,21 @@ model PlaidItem {
 }
 
 model PlaidAccount {
-  id          String    @id @default(cuid())
-  accountId   String    @unique  // Plaid's account_id
+  id          String      @id @default(cuid())
+  accountId   String      @unique  // Plaid's account_id
   name        String
   subtype     String?
+  role        AccountRole @default(SECONDARY)
   plaidItemId String
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime    @default(now())
 
   plaidItem PlaidItem @relation(fields: [plaidItemId], references: [id], onDelete: Cascade)
+}
+
+enum AccountRole {
+  PRIMARY
+  SECONDARY
+  BALANCE_ONLY
 }
 
 enum Frequency {
