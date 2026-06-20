@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { CountryCode, Products } from 'plaid';
 import { subDays } from 'date-fns';
+import { AccountRole } from '@prisma/client';
 import { plaidClient } from '../lib/plaid';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
@@ -143,16 +144,56 @@ export async function getConnectedBanks(req: AuthRequest, res: Response) {
       id: true,
       institution: true,
       createdAt: true,
-      accounts: { select: { accountId: true, name: true, subtype: true } },
+      accounts: { select: { accountId: true, name: true, subtype: true, role: true } },
     },
   });
 
   const response = items.map(({ accounts, ...item }) => ({
     ...item,
-    accounts: accounts.map((a) => ({ id: a.accountId, name: a.name, subtype: a.subtype })),
+    accounts: accounts.map((a) => ({ id: a.accountId, name: a.name, subtype: a.subtype, role: a.role })),
   }));
 
   res.json(response);
+}
+
+export async function setAccountRole(req: AuthRequest, res: Response) {
+  const userId = req.userId!;
+  const { accountId } = req.params;
+  const { role } = req.body;
+
+  const validRoles: AccountRole[] = ['PRIMARY', 'SECONDARY', 'BALANCE_ONLY'];
+  if (!validRoles.includes(role)) {
+    return res.status(400).json({ error: `role must be one of: ${validRoles.join(', ')}` });
+  }
+
+  const account = await prisma.plaidAccount.findUnique({
+    where: { accountId },
+    include: { plaidItem: { select: { userId: true } } },
+  });
+
+  if (!account || account.plaidItem.userId !== userId) {
+    return res.status(404).json({ error: 'Account not found' });
+  }
+
+  if (role === 'PRIMARY') {
+    // Auto-demote any existing primary to SECONDARY before promoting this one
+    const userItemIds = await prisma.plaidItem
+      .findMany({ where: { userId }, select: { id: true } })
+      .then((items) => items.map((i) => i.id));
+
+    await prisma.plaidAccount.updateMany({
+      where: { plaidItemId: { in: userItemIds }, role: 'PRIMARY' },
+      data: { role: 'SECONDARY' },
+    });
+  }
+
+  const updated = await prisma.plaidAccount.update({
+    where: { accountId },
+    data: { role },
+    select: { accountId: true, role: true },
+  });
+
+  res.json(updated);
 }
 
 export async function disconnectAccount(req: AuthRequest, res: Response) {
