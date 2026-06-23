@@ -1,8 +1,28 @@
 import { Response } from 'express';
 import { prisma } from '../lib/prisma';
+import { plaidClient } from '../lib/plaid';
 import { AuthRequest } from '../middleware/auth';
 import { addDays } from 'date-fns';
 import { nextFuturePayDate } from '../lib/income';
+
+// The PRIMARY account's live balance anchors safe-to-spend to real cash rather
+// than a pure income projection. Returns null if no PRIMARY account is set
+// (or its balance can't be fetched), so callers can fall back to the estimate.
+async function getPrimaryBalance(userId: string): Promise<number | null> {
+  const primary = await prisma.plaidAccount.findFirst({
+    where: { role: 'PRIMARY', plaidItem: { userId } },
+    include: { plaidItem: true },
+  });
+  if (!primary) return null;
+
+  try {
+    const { data } = await plaidClient.accountsGet({ access_token: primary.plaidItem.accessToken });
+    const account = data.accounts.find((a) => a.account_id === primary.accountId);
+    return account?.balances.available ?? account?.balances.current ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Financial Health Score (0–100):
@@ -13,13 +33,15 @@ import { nextFuturePayDate } from '../lib/income';
 export async function computeHealthScore(req: AuthRequest, res: Response) {
   const userId = req.userId!;
 
-  const [bills, income, transactions] = await Promise.all([
+  const [bills, income, transactions, primaryBalance] = await Promise.all([
     prisma.bill.findMany({ where: { userId } }),
     prisma.incomeSource.findMany({ where: { userId } }),
     prisma.transaction.findMany({
       where: { userId, date: { gte: addDays(new Date(), -30) } },
     }),
+    getPrimaryBalance(userId),
   ]);
+  const cashSource: 'balance' | 'estimate' = primaryBalance !== null ? 'balance' : 'estimate';
 
   // Bill pay rate — only bills already past due count as missed.
   // Future unpaid bills are not yet overdue, so they don't penalise the score.
@@ -86,14 +108,19 @@ export async function computeHealthScore(req: AuthRequest, res: Response) {
         }, 0)
       : 0;
 
+    const safeToSpend = primaryBalance !== null
+      ? Math.max(0, primaryBalance + incomeBeforeNextPay)
+      : incomeBeforeNextPay;
+
     return res.json({
       score: null,
       bufferDays: 0,
       billPayRate: 1,
       debtToIncome: 0,
-      safeToSpend: incomeBeforeNextPay,
+      safeToSpend,
       daysUntilNextPay: daysUntilPay !== null ? Math.round(daysUntilPay) : null,
       monthlyIncome,
+      cashSource,
     });
   }
 
@@ -134,14 +161,19 @@ export async function computeHealthScore(req: AuthRequest, res: Response) {
         .reduce((sum, b) => sum + b.amount, 0)
     : 0;
 
-  // Safe-to-spend: money arriving before next payday minus bills due before then.
-  const safeToSpend = Math.max(0, incomeBeforeNextPay - upcomingBillTotal);
+  // Safe-to-spend: cash on hand (when a PRIMARY account balance is available)
+  // plus money arriving before next payday, minus bills due before then.
+  // Without a PRIMARY balance, this falls back to a pure income/bills projection.
+  const safeToSpend = primaryBalance !== null
+    ? Math.max(0, primaryBalance + incomeBeforeNextPay - upcomingBillTotal)
+    : Math.max(0, incomeBeforeNextPay - upcomingBillTotal);
 
   res.json({
     ...snapshot,
     safeToSpend,
     daysUntilNextPay: daysUntilPay !== null ? Math.round(daysUntilPay) : null,
     monthlyIncome,
+    cashSource,
   });
 }
 
