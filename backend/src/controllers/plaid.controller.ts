@@ -77,7 +77,17 @@ export async function syncTransactions(req: AuthRequest, res: Response) {
       });
     }
 
+    // BALANCE_ONLY accounts are tracked for their balance, not for spending
+    // analysis — their transactions are intentionally never imported.
+    const balanceOnlyAccounts = await prisma.plaidAccount.findMany({
+      where: { plaidItemId: item.id, role: 'BALANCE_ONLY' },
+      select: { accountId: true },
+    });
+    const excludedAccountIds = new Set(balanceOnlyAccounts.map((a) => a.accountId));
+
     for (const txn of response.data.transactions) {
+      if (excludedAccountIds.has(txn.account_id)) continue;
+
       const category = txn.personal_finance_category?.primary || 'OTHER';
       // Plaid's amount sign is authoritative: positive = money leaving the
       // account (expense), negative = money entering it (income/refund/credit).
@@ -192,6 +202,13 @@ export async function setAccountRole(req: AuthRequest, res: Response) {
     data: { role },
     select: { accountId: true, role: true },
   });
+
+  if (role === 'BALANCE_ONLY') {
+    // Purge previously-imported transactions for this account — they're
+    // reversible via re-sync if the role is later changed back, since Plaid
+    // retains the transaction history independently of our database.
+    await prisma.transaction.deleteMany({ where: { userId, plaidAccountId: accountId } });
+  }
 
   res.json(updated);
 }
