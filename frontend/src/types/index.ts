@@ -55,6 +55,7 @@ export interface HealthSnapshot {
   safeToSpend?: number;
   daysUntilNextPay?: number;
   monthlyIncome?: number;
+  cashSource?: 'balance' | 'estimate';
   createdAt: string;
 }
 

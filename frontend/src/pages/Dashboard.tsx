@@ -103,7 +103,9 @@ export default function Dashboard() {
           <p className="text-3xl font-bold text-brand-600">
             {snapshot ? formatCurrency(snapshot.safeToSpend ?? 0) : '—'}
           </p>
-          <p className="text-xs text-gray-400 mt-1">After upcoming bills</p>
+          <p className="text-xs text-gray-400 mt-1">
+            {snapshot?.cashSource === 'balance' ? 'Based on your primary account balance' : 'Estimated from income & upcoming bills'}
+          </p>
         </div>
 
         {/* Days until pay */}
