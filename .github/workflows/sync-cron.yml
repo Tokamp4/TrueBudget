@@ -1,0 +1,15 @@
+name: Daily Plaid Sync
+
+on:
+  schedule:
+    - cron: '0 13 * * *' # 13:00 UTC daily — adjust as needed
+  workflow_dispatch: {} # allows manual trigger from the Actions tab
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger backend sync
+        run: |
+          curl -sf -X POST "${{ secrets.SYNC_URL }}" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}"

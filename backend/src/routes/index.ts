@@ -4,8 +4,9 @@ import { getBills, createBill, updateBill, deleteBill } from '../controllers/bil
 import { getIncome, createIncome, updateIncome, deleteIncome } from '../controllers/income.controller';
 import { getTransactions, createTransaction, deleteTransaction } from '../controllers/transactions.controller';
 import { computeHealthScore, getHealthHistory } from '../controllers/health.controller';
-import { createLinkToken, exchangePublicToken, syncTransactions, getConnectedBanks, setAccountRole, disconnectAccount, getSuggestions } from '../controllers/plaid.controller';
+import { createLinkToken, exchangePublicToken, syncTransactions, getConnectedBanks, setAccountRole, disconnectAccount, getSuggestions, syncAllItems } from '../controllers/plaid.controller';
 import { authenticate } from '../middleware/auth';
+import { verifyCronSecret } from '../middleware/cronAuth';
 
 const router = Router();
 
@@ -48,5 +49,8 @@ router.get('/plaid/banks', authenticate, getConnectedBanks);
 router.patch('/plaid/accounts/:accountId/role', authenticate, setAccountRole);
 router.delete('/plaid/accounts/:accountId', authenticate, disconnectAccount);
 router.get('/plaid/suggestions', authenticate, getSuggestions);
+
+// Internal (cron-triggered, no logged-in user — guarded by shared secret instead of JWT)
+router.post('/internal/sync-all', verifyCronSecret, syncAllItems);
 
 export default router;

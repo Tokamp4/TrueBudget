@@ -1,7 +1,7 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { CountryCode, Products } from 'plaid';
 import { subDays } from 'date-fns';
-import { AccountRole } from '@prisma/client';
+import { AccountRole, PlaidItem } from '@prisma/client';
 import { plaidClient } from '../lib/plaid';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
@@ -48,71 +48,99 @@ export async function exchangePublicToken(req: AuthRequest, res: Response) {
   res.json({ success: true, institution });
 }
 
-// Step 3: Sync transactions from Plaid
+// Pulls transactions + accounts for a single Plaid item and upserts them.
+// Shared by the per-user endpoint and the all-users cron endpoint below.
+async function syncPlaidItem(item: Pick<PlaidItem, 'id' | 'userId' | 'accessToken'>): Promise<number> {
+  const response = await plaidClient.transactionsGet({
+    access_token: item.accessToken,
+    start_date: '2024-01-01',
+    end_date: new Date().toISOString().split('T')[0],
+  });
+
+  // Upsert PlaidAccount records for every account returned by this item
+  const accountsResponse = await plaidClient.accountsGet({ access_token: item.accessToken });
+  for (const account of accountsResponse.data.accounts) {
+    await prisma.plaidAccount.upsert({
+      where: { accountId: account.account_id },
+      update: { name: account.name, subtype: account.subtype ?? null },
+      create: {
+        accountId: account.account_id,
+        name: account.name,
+        subtype: account.subtype ?? null,
+        plaidItemId: item.id,
+      },
+    });
+  }
+
+  // BALANCE_ONLY accounts are tracked for their balance, not for spending
+  // analysis — their transactions are intentionally never imported.
+  const balanceOnlyAccounts = await prisma.plaidAccount.findMany({
+    where: { plaidItemId: item.id, role: 'BALANCE_ONLY' },
+    select: { accountId: true },
+  });
+  const excludedAccountIds = new Set(balanceOnlyAccounts.map((a) => a.accountId));
+
+  let synced = 0;
+  for (const txn of response.data.transactions) {
+    if (excludedAccountIds.has(txn.account_id)) continue;
+
+    const category = txn.personal_finance_category?.primary || 'OTHER';
+    // Plaid's amount sign is authoritative: positive = money leaving the
+    // account (expense), negative = money entering it (income/refund/credit).
+    const isIncome = txn.amount < 0;
+
+    await prisma.transaction.upsert({
+      where: { plaidId: txn.transaction_id },
+      update: {},
+      create: {
+        userId: item.userId,
+        amount: Math.abs(txn.amount),
+        type: isIncome ? 'INCOME' : 'EXPENSE',
+        date: new Date(txn.date),
+        category,
+        note: txn.name,
+        source: 'plaid',
+        plaidId: txn.transaction_id,
+        plaidAccountId: txn.account_id,
+      },
+    });
+    synced++;
+  }
+
+  return synced;
+}
+
+// Step 3: Sync transactions from Plaid (current user only)
 export async function syncTransactions(req: AuthRequest, res: Response) {
   const plaidItems = await prisma.plaidItem.findMany({ where: { userId: req.userId! } });
-  if (plaidItems.length === 0) return res.json({ synced: 0 });
 
   let totalSynced = 0;
-
   for (const item of plaidItems) {
-    const response = await plaidClient.transactionsGet({
-      access_token: item.accessToken,
-      start_date: '2024-01-01',
-      end_date: new Date().toISOString().split('T')[0],
-    });
-
-    // Upsert PlaidAccount records for every account returned by this item
-    const accountsResponse = await plaidClient.accountsGet({ access_token: item.accessToken });
-    for (const account of accountsResponse.data.accounts) {
-      await prisma.plaidAccount.upsert({
-        where: { accountId: account.account_id },
-        update: { name: account.name, subtype: account.subtype ?? null },
-        create: {
-          accountId: account.account_id,
-          name: account.name,
-          subtype: account.subtype ?? null,
-          plaidItemId: item.id,
-        },
-      });
-    }
-
-    // BALANCE_ONLY accounts are tracked for their balance, not for spending
-    // analysis — their transactions are intentionally never imported.
-    const balanceOnlyAccounts = await prisma.plaidAccount.findMany({
-      where: { plaidItemId: item.id, role: 'BALANCE_ONLY' },
-      select: { accountId: true },
-    });
-    const excludedAccountIds = new Set(balanceOnlyAccounts.map((a) => a.accountId));
-
-    for (const txn of response.data.transactions) {
-      if (excludedAccountIds.has(txn.account_id)) continue;
-
-      const category = txn.personal_finance_category?.primary || 'OTHER';
-      // Plaid's amount sign is authoritative: positive = money leaving the
-      // account (expense), negative = money entering it (income/refund/credit).
-      const isIncome = txn.amount < 0;
-
-      await prisma.transaction.upsert({
-        where: { plaidId: txn.transaction_id },
-        update: {},
-        create: {
-          userId: req.userId!,
-          amount: Math.abs(txn.amount),
-          type: isIncome ? 'INCOME' : 'EXPENSE',
-          date: new Date(txn.date),
-          category,
-          note: txn.name,
-          source: 'plaid',
-          plaidId: txn.transaction_id,
-          plaidAccountId: txn.account_id,
-        },
-      });
-      totalSynced++;
-    }
+    totalSynced += await syncPlaidItem(item);
   }
 
   res.json({ synced: totalSynced });
+}
+
+// Cron-triggered sync across every connected item for every user.
+// Each item is wrapped so one failure (e.g. a revoked access token) doesn't
+// stop the rest of the batch from syncing.
+export async function syncAllItems(_req: Request, res: Response) {
+  const plaidItems = await prisma.plaidItem.findMany();
+
+  let totalSynced = 0;
+  let failed = 0;
+
+  for (const item of plaidItems) {
+    try {
+      totalSynced += await syncPlaidItem(item);
+    } catch (err) {
+      failed++;
+      console.error(`[cron-sync] Failed to sync PlaidItem ${item.id}:`, err);
+    }
+  }
+
+  res.json({ items: plaidItems.length, synced: totalSynced, failed });
 }
 
 export async function getSuggestions(req: AuthRequest, res: Response) {
